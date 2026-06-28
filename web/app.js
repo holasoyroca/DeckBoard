@@ -1185,12 +1185,15 @@ async function loadGamesSpace() {
                     </div>
                 </td>
                 <td style="text-align: center;">
-                    <div style="display: flex; gap: 0.5rem; justify-content: center;">
-                        <button class="btn btn-secondary btn-sm" onclick="cleanGameCache('${game.appid}', true, false, '${game.name.replace(/'/g, "\\'")}')" ${disableShader} style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">
+                    <div style="display: flex; gap: 0.4rem; justify-content: center; align-items: center; flex-wrap: wrap;">
+                        <button class="btn btn-secondary btn-sm" onclick="cleanGameCache('${game.appid}', true, false, '${game.name.replace(/'/g, "\\'")}')" ${disableShader} style="padding: 0.3rem 0.5rem; font-size: 0.72rem;">
                             Borrar Shaders
                         </button>
-                        <button class="btn btn-secondary btn-sm" onclick="cleanGameCache('${game.appid}', false, true, '${game.name.replace(/'/g, "\\'")}')" ${disableCompat} style="padding: 0.3rem 0.6rem; font-size: 0.75rem; border-color: rgba(239, 68, 68, 0.2); color: #f87171;">
+                        <button class="btn btn-secondary btn-sm" onclick="cleanGameCache('${game.appid}', false, true, '${game.name.replace(/'/g, "\\'")}')" ${disableCompat} style="padding: 0.3rem 0.5rem; font-size: 0.72rem; border-color: rgba(239, 68, 68, 0.2); color: #f87171;">
                             Borrar Prefijo
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="uninstallGame('${game.appid}', '${game.name.replace(/'/g, "\\'")}')" style="padding: 0.3rem 0.5rem; font-size: 0.72rem; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fecaca;">
+                            Eliminar Juego
                         </button>
                     </div>
                 </td>
@@ -1238,6 +1241,44 @@ async function cleanGameCache(appid, cleanShaders, cleanCompat, gameName) {
     }
 }
 
+async function uninstallGame(appid, gameName) {
+    if (!confirm(`⚠️ ¡ATENCIÓN CRÍTICA! ⚠️\n\n¿Estás seguro de que deseas eliminar COMPLETAMENTE "${gameName}" de tu Steam Deck?\n\nEsta acción borrará:\n1. Todos los archivos de instalación del juego.\n2. Todos los archivos de Shaders compilados.\n3. Su prefijo Proton/Compatdata (incluyendo sus partidas guardadas locales si no usa Steam Cloud).\n\nEl juego se eliminará por completo y tendrás que descargarlo de nuevo desde Steam para volver a jugarlo.`)) {
+        return;
+    }
+    
+    if (!confirm(`Confirmación final: ¿Realmente deseas desinstalar y borrar todo el contenido de "${gameName}"?`)) {
+        return;
+    }
+    
+    const tbody = document.getElementById("games-table-body");
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="4" style="text-align: center; padding: 3rem;">
+                <div class="spinner" style="margin: 0 auto 1rem auto;"></div>
+                <p>Eliminando archivos del juego, shaders y prefijo de compatibilidad...</p>
+            </td>
+        </tr>
+    `;
+    
+    try {
+        const res = await fetch("/api/games/uninstall", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ appid: appid })
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || "Failed to uninstall game");
+        }
+        
+        alert(`"${gameName}" ha sido desinstalado y eliminado por completo de tu Steam Deck.`);
+    } catch (err) {
+        alert("Error al desinstalar el juego: " + err.message);
+    } finally {
+        loadGamesSpace();
+    }
+}
+
 // Expose actions to window context
 window.toggleMute = toggleMute;
 window.triggerFlatpakUpdate = triggerFlatpakUpdate;
@@ -1251,6 +1292,7 @@ window.triggerBiosGlobalRestore = triggerBiosGlobalRestore;
 window.handleBiosGlobalRestore = handleBiosGlobalRestore;
 window.loadGamesSpace = loadGamesSpace;
 window.cleanGameCache = cleanGameCache;
+window.uninstallGame = uninstallGame;
 
 // Start application
 switchTab("stats");

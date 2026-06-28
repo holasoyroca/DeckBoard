@@ -1395,6 +1395,83 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 self.send_json({"status": "success", "cleaned": deleted_folders})
             except Exception as e:
                 self.send_json({"error": str(e)}, status=500)
+        elif path == "/api/games/uninstall":
+            if content_length == 0:
+                self.send_json({"error": "Missing post data"}, status=400)
+                return
+                
+            try:
+                body = self.rfile.read(content_length).decode('utf-8')
+                data = json.loads(body)
+                appid = data.get("appid")
+                
+                if not appid or not re.match(r"^\d+$", appid):
+                    self.send_json({"error": "Invalid AppID"}, status=400)
+                    return
+                    
+                paths = []
+                raw_paths = [
+                    os.path.expanduser("~/.steam/steam/steamapps"),
+                    os.path.expanduser("~/.local/share/Steam/steamapps")
+                ]
+                sd_mounts = glob.glob("/run/media/deck/*")
+                for sd in sd_mounts:
+                    sd_steamapps = os.path.join(sd, "steamapps")
+                    if os.path.exists(sd_steamapps):
+                        raw_paths.append(sd_steamapps)
+                        
+                seen_paths = set()
+                for rp in raw_paths:
+                    if os.path.exists(rp):
+                        real_p = os.path.realpath(rp)
+                        if real_p not in seen_paths:
+                            seen_paths.add(real_p)
+                            paths.append(real_p)
+                            
+                manifest_found = False
+                for base_path in paths:
+                    manifest_path = os.path.join(base_path, f"appmanifest_{appid}.acf")
+                    if os.path.exists(manifest_path):
+                        try:
+                            with open(manifest_path, "r", encoding="utf-8", errors="ignore") as f:
+                                content = f.read()
+                            installdir_match = re.search(r'"installdir"\s+"([^"]+)"', content)
+                            installdir = installdir_match.group(1) if installdir_match else None
+                            
+                            if installdir:
+                                common_path = os.path.join(base_path, "common", installdir)
+                                if os.path.exists(common_path) and os.path.isdir(common_path):
+                                    real_common = os.path.realpath(common_path)
+                                    if real_common.endswith(f"/common/{installdir}"):
+                                        shutil.rmtree(real_common)
+                        except Exception as e:
+                            print(f"Error deleting common folder for {appid}: {e}", file=sys.stderr)
+                            
+                        try:
+                            os.remove(manifest_path)
+                        except Exception as e:
+                            print(f"Error deleting manifest {manifest_path}: {e}", file=sys.stderr)
+                            
+                        manifest_found = True
+                        
+                    shader_path = os.path.join(base_path, "shadercache", appid)
+                    if os.path.exists(shader_path) and os.path.isdir(shader_path):
+                        real_shader = os.path.realpath(shader_path)
+                        if real_shader.endswith(f"/shadercache/{appid}"):
+                            shutil.rmtree(real_shader)
+                            
+                    compat_path = os.path.join(base_path, "compatdata", appid)
+                    if os.path.exists(compat_path) and os.path.isdir(compat_path):
+                        real_compat = os.path.realpath(compat_path)
+                        if real_compat.endswith(f"/compatdata/{appid}"):
+                            shutil.rmtree(real_compat)
+                            
+                if manifest_found:
+                    self.send_json({"status": "success"})
+                else:
+                    self.send_json({"error": "Game manifest not found"}, status=404)
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
         else:
             self.send_error(404, "API Endpoint Not Found")
 
