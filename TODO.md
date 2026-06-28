@@ -31,3 +31,11 @@ Este documento detalla las funciones planificadas para las próximas versiones d
     *   Detectar discrepancias de mayúsculas/minúsculas (case mismatches) para evitar incompatibilidades en Linux.
     *   Zonas drag-and-drop independientes para subir e instalar archivos BIOS directamente en las carpetas correctas por Wi-Fi.
     *   Acción rápida para corregir nombres de archivos incorrectos directamente desde la interfaz web.
+
+### 📊 4. Analizador de Espacio de Juegos (Steam Game Space Analyzer) - [COMPLETADO ✅]
+*   **Descripción:** Analizador visual e interactivo de almacenamiento de los juegos de Steam (SSD y MicroSD).
+*   **Funciones implementadas:**
+    *   Escanear la biblioteca de Steam y desglosar el espacio ocupado por cada juego en 3 componentes principales: Archivos del juego (`common`), Archivos de caché de Shaders (`shadercache`) y Prefijos de Proton (`compatdata`).
+    *   Visualización moderna usando barras de progreso apiladas con colores diferenciados (Azul para el juego, Púrpura para los shaders, Rosa para el prefijo).
+    *   Mapear y agrupar la información por disco (SSD Interno o tarjeta MicroSD).
+    *   Herramientas de limpieza quirúrgicas para eliminar de forma individual el caché de shaders o el prefijo de compatdata de un juego específico.
