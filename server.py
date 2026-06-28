@@ -802,7 +802,8 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 self.send_json({"error": str(e)}, status=500)
         elif path == "/api/games/space_analyzer":
             try:
-                paths = [
+                paths = []
+                raw_paths = [
                     os.path.expanduser("~/.steam/steam/steamapps"),
                     os.path.expanduser("~/.local/share/Steam/steamapps")
                 ]
@@ -810,7 +811,15 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 for sd in sd_mounts:
                     sd_steamapps = os.path.join(sd, "steamapps")
                     if os.path.exists(sd_steamapps):
-                        paths.append(sd_steamapps)
+                        raw_paths.append(sd_steamapps)
+                        
+                seen_paths = set()
+                for rp in raw_paths:
+                    if os.path.exists(rp):
+                        real_p = os.path.realpath(rp)
+                        if real_p not in seen_paths:
+                            seen_paths.add(real_p)
+                            paths.append(real_p)
                         
                 results = []
                 for base_path in paths:

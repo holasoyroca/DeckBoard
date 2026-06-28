@@ -540,8 +540,18 @@
                                 <line x1="12" y1="8" x2="12.01" y2="8"></line>
                             </svg>
                         </div>
-                        <div class="alert-content">
-                            <strong>Libera espacio quirúrgicamente:</strong> Puedes eliminar los shaders o el prefijo de compatdata de cualquier juego de forma individual. Si eliminas el `compatdata`, se borrarán los datos guardados del juego que no usen Steam Cloud (los archivos instalados del juego no se tocan).
+                        <div class="alert-content" style="font-size: 0.85rem; line-height: 1.45;">
+                            <strong style="display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">⚠️ Información importante sobre la limpieza de espacio:</strong>
+                            <ul style="margin: 0; padding-left: 1.2rem;">
+                                <li style="margin-bottom: 0.4rem;">
+                                    <strong>Caché de Shaders (Barra Púrpura):</strong> Son archivos precompilados de gráficos para evitar tirones (stuttering) al jugar. 
+                                    <em>Consecuencia de borrarlo:</em> Liberas espacio de inmediato de forma 100% segura, pero la próxima vez que inicies el juego, Steam volverá a descargarlos o el juego los compilará mientras juegas, lo que puede causar pequeños tirones de rendimiento temporales al principio.
+                                </li>
+                                <li>
+                                    <strong>Prefijo de Proton / Compatdata (Barra Rosa):</strong> Carpeta que simula un entorno Windows exclusivo para ese juego (registro, configuración, etc.).
+                                    <em>Consecuencia de borrarlo:</em> <strong>¡Cuidado!</strong> Se borrarán las configuraciones del juego y las <strong>partidas guardadas locales</strong> (si el juego no soporta Steam Cloud o si juegas sin conexión). El juego no se romperá; al iniciarse creará un prefijo limpio y nuevo automáticamente.
+                                </li>
+                            </ul>
                         </div>
                     </div>
                 </div>
