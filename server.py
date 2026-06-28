@@ -718,7 +718,7 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 
             all_files = {}
             try:
-                for root, dirs, files in os.walk(bios_root):
+                for root, dirs, files in os.walk(bios_root, followlinks=True):
                     for file in files:
                         full_path = os.path.join(root, file)
                         rel_path = os.path.relpath(full_path, bios_root)
