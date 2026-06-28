@@ -38,6 +38,18 @@ Permite monitorizar estadísticas del sistema, transferir juegos (ROMs) mediante
     *(Si accedes desde la propia Steam Deck, entra a `http://localhost:8000`)*.
 4.  Presiona `Ctrl+C` en la terminal para apagar el servidor.
 
+
+---
+
+## 🖥️ Acceso Directo en el Escritorio (Pantalla Táctil / Modo Escritorio)
+
+Si usas la Steam Deck en **Modo Escritorio** y deseas poder arrancar y apagar DeckBoard cómodamente tocando la pantalla táctil (sin abrir Dolphin ni escribir comandos):
+
+1. Abre el explorador de archivos **Dolphin** en tu Steam Deck y navega a `/home/deck/git_proyects/DeckBoard/`.
+2. Haz doble clic en el archivo `create_shortcut.sh` y ejecútalo (o córrelo desde la terminal con `./create_shortcut.sh`).
+3. Se creará automáticamente un acceso directo llamado **DeckBoard** en tu Escritorio con el icono de Steam.
+4. A partir de ahora, solo haz doble toque sobre el icono de tu Escritorio para arrancar el servidor en una terminal visible. Cuando termines, solo cierra la ventana de la terminal para apagarlo.
+
 ---
 
 ## 🤖 Inicio Automático con SteamOS (Servicio Systemd)
