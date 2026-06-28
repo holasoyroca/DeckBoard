@@ -531,21 +531,32 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 import zipfile
                 
                 memory_file = io.BytesIO()
-                with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                    for root, dirs, files in os.walk(saves_root):
-                        if any("_backup_" in part for part in root.split(os.sep)):
-                            continue
-                        for file in files:
-                            file_path = os.path.join(root, file)
-                            arcname = os.path.relpath(file_path, saves_root)
-                            try:
-                                if os.path.islink(file_path) and not os.path.exists(file_path):
-                                    continue
-                                zip_file.write(file_path, arcname)
-                            except Exception as e:
-                                print(f"Error zipping {file_path}: {e}", file=sys.stderr)
-                                continue
-                            
+                with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as global_zip:
+                    with os.scandir(saves_root) as it:
+                        for entry in it:
+                            if entry.is_dir() and not entry.name.startswith(".") and not "_backup_" in entry.name:
+                                emulator = entry.name
+                                # Create in-memory zip for this emulator
+                                emu_buffer = io.BytesIO()
+                                with zipfile.ZipFile(emu_buffer, 'w', zipfile.ZIP_DEFLATED) as emu_zip:
+                                    for root, dirs, files in os.walk(entry.path):
+                                        if "_backup_" in root:
+                                            continue
+                                        for file in files:
+                                            file_path = os.path.join(root, file)
+                                            arcname = os.path.relpath(file_path, entry.path)
+                                            try:
+                                                if os.path.islink(file_path) and not os.path.exists(file_path):
+                                                    continue
+                                                emu_zip.write(file_path, arcname)
+                                            except Exception as e:
+                                                print(f"Error zipping {file_path}: {e}", file=sys.stderr)
+                                                continue
+                                                
+                                # Add inner zip to global zip
+                                emu_buffer.seek(0)
+                                global_zip.writestr(f"{emulator}.zip", emu_buffer.getvalue())
+                                
                 memory_file.seek(0)
                 zip_data = memory_file.getvalue()
                 
@@ -725,7 +736,7 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 timestamp = time.strftime("%Y%m%d_%H%M%S")
                 backup_path = f"{real_emulator_path}_backup_{timestamp}"
                 
-                shutil.copytree(real_emulator_path, backup_path)
+                shutil.copytree(real_emulator_path, backup_path, symlinks=True)
                 
                 with os.scandir(real_emulator_path) as it:
                     for entry in it:
@@ -779,22 +790,40 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                             ignored.append(name)
                     return ignored
                     
-                shutil.copytree(saves_root, global_backup_path, ignore=ignore_backups)
+                # Enable symlinks=True to copy broken symlinks as links without error
+                shutil.copytree(saves_root, global_backup_path, ignore=ignore_backups, symlinks=True)
                 
-                # Delete active directories (not backups)
-                with os.scandir(saves_root) as it:
-                    for entry in it:
-                        if "_backup_" in entry.name:
-                            continue
-                        if entry.is_file() or entry.is_symlink():
-                            os.remove(entry.path)
-                        elif entry.is_dir():
-                            shutil.rmtree(entry.path)
+                # Extract global zip which contains inner <emulator>.zip files
+                with zipfile.ZipFile(zip_buffer) as gz:
+                    for file_info in gz.infolist():
+                        if file_info.filename.endswith(".zip"):
+                            emulator = file_info.filename[:-4]
+                            if not re.match(r"^[a-zA-Z0-9_\-]+$", emulator):
+                                continue
+                                
+                            emulator_path = os.path.join(saves_root, emulator)
+                            os.makedirs(emulator_path, exist_ok=True)
                             
-                # Extract zip to saves root
-                with zipfile.ZipFile(zip_buffer) as zf:
-                    zf.extractall(saves_root)
-                    
+                            # Delete active files/directories (ignore backups)
+                            try:
+                                with os.scandir(emulator_path) as it:
+                                    for entry in it:
+                                        if "_backup_" in entry.name:
+                                            continue
+                                        if entry.is_file() or entry.is_symlink():
+                                            os.remove(entry.path)
+                                        elif entry.is_dir():
+                                            shutil.rmtree(entry.path)
+                            except Exception:
+                                pass
+                                
+                            # Extract inner zip
+                            inner_zip_data = gz.read(file_info.filename)
+                            inner_zip_buffer = io.BytesIO(inner_zip_data)
+                            if zipfile.is_zipfile(inner_zip_buffer):
+                                with zipfile.ZipFile(inner_zip_buffer) as iz:
+                                    iz.extractall(emulator_path)
+                                    
                 self.send_json({
                     "status": "success",
                     "backup_created": os.path.basename(global_backup_path)
