@@ -1,9 +1,11 @@
 // State variables
 let activeTab = "stats";
 let activeConsole = null;
+let activeRestoreEmulator = null;
 let consolesData = [];
 let romsData = [];
 let shadersData = [];
+let savesData = [];
 let statsInterval = null;
 
 // DOM Elements
@@ -16,7 +18,7 @@ const sshIpInfo = document.getElementById("ssh-ip-info");
 
 // Format helpers
 function formatBytes(bytes, decimals = 2) {
-    if (bytes === 0 || !bytes) return '0 Bytes';
+    if (bytes === 0 || bytes === null || bytes === undefined) return '0 Bytes';
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -66,6 +68,10 @@ function switchTab(tab) {
         tabTitle.innerText = "Gestor de ROMs y BIOS";
         btnRefreshStats.style.display = "none";
         loadConsoles();
+    } else if (tab === "saves") {
+        tabTitle.innerText = "Gestor de Partidas Guardadas";
+        btnRefreshStats.style.display = "none";
+        loadSaves();
     } else if (tab === "shaders") {
         tabTitle.innerText = "Limpiador de Shaders";
         btnRefreshStats.style.display = "none";
@@ -383,6 +389,115 @@ function uploadFile(file, system) {
     
     xhr.send(file);
 }
+
+// --- SAVES TAB LOGIC ---
+const savesLoading = document.getElementById("saves-loading");
+const savesEmpty = document.getElementById("saves-empty");
+const savesListView = document.getElementById("saves-list-view");
+const savesTableBody = document.getElementById("saves-table-body");
+const savesUploadInput = document.getElementById("saves-upload-input");
+
+async function loadSaves() {
+    savesLoading.style.display = "flex";
+    savesEmpty.style.display = "none";
+    savesListView.style.display = "none";
+    
+    try {
+        const res = await fetch("/api/saves/systems");
+        if (!res.ok) throw new Error("Failed to load save systems");
+        const data = await res.json();
+        
+        savesData = data.systems || [];
+        savesLoading.style.display = "none";
+        
+        if (savesData.length === 0) {
+            savesEmpty.style.display = "flex";
+        } else {
+            savesListView.style.display = "flex";
+            renderSaves();
+        }
+    } catch (err) {
+        savesLoading.innerHTML = `<div style="color: var(--danger); font-weight: bold; padding: 2rem; text-align: center;">Error al cargar partidas guardadas: ${err.message}</div>`;
+    }
+}
+
+function renderSaves() {
+    savesTableBody.innerHTML = "";
+    
+    savesData.forEach(sys => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td style="font-weight: 600; padding: 1rem;">${sys.name}</td>
+            <td class="col-size" style="padding: 1rem;">${formatBytes(sys.size)}</td>
+            <td style="width: 280px; text-align: center; padding: 1rem;">
+                <button class="btn btn-secondary btn-sm" onclick="downloadSaves('${sys.id}')" style="margin-right: 0.5rem;">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path>
+                    </svg>
+                    <span>Backup</span>
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="triggerRestoreSaves('${sys.id}')">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"></path>
+                    </svg>
+                    <span>Restaurar</span>
+                </button>
+            </td>
+        `;
+        savesTableBody.appendChild(tr);
+    });
+}
+
+function downloadSaves(emulatorId) {
+    window.location.href = `/api/saves/download?emulator=${encodeURIComponent(emulatorId)}`;
+}
+
+function triggerRestoreSaves(emulatorId) {
+    activeRestoreEmulator = emulatorId;
+    savesUploadInput.value = "";
+    savesUploadInput.click();
+}
+
+savesUploadInput.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (file && activeRestoreEmulator) {
+        if (!file.name.endsWith(".zip")) {
+            alert("Por favor selecciona un archivo comprimido .zip válido de partida guardada.");
+            return;
+        }
+        
+        if (!confirm(`¿Estás seguro de que deseas restaurar las partidas de ${activeRestoreEmulator}? Se sobreescribirán los archivos locales actuales. (Se creará una copia de seguridad local en la Steam Deck por seguridad).`)) {
+            return;
+        }
+        
+        savesLoading.style.display = "flex";
+        savesListView.style.display = "none";
+        savesLoading.querySelector("p").innerText = "Restaurando partida guardada y creando backup local...";
+        
+        try {
+            const res = await fetch(`/api/saves/restore?emulator=${encodeURIComponent(activeRestoreEmulator)}`, {
+                method: "POST",
+                body: file
+            });
+            
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || "Failed to restore saves");
+            }
+            
+            const data = await res.json();
+            alert(`¡Partida restaurada con éxito!\nSe ha guardado un respaldo de tu guardado anterior en la carpeta local:\n${data.backup_created}`);
+            loadSaves();
+        } catch (err) {
+            alert("Error al restaurar partida: " + err.message);
+            loadSaves();
+        }
+    }
+});
+
+// Expose functions globally for inline HTML click attributes
+window.downloadSaves = downloadSaves;
+window.triggerRestoreSaves = triggerRestoreSaves;
 
 // --- SHADERS TAB LOGIC ---
 const btnRescanShaders = document.getElementById("btn-rescan-shaders");

@@ -198,6 +198,21 @@ def find_roms_root():
             
     return None
 
+def find_saves_root():
+    """Discover where the EmuDeck/saves folder is located on the system."""
+    sd_mounts = glob.glob("/run/media/deck/*")
+    for sd in sd_mounts:
+        for folder in ["Emulation/saves", "saves"]:
+            path = os.path.join(sd, folder)
+            if os.path.exists(path) and os.path.isdir(path):
+                return path
+                
+    for path in ["/home/deck/Emulation/saves", "/home/deck/saves"]:
+        if os.path.exists(path) and os.path.isdir(path):
+            return path
+            
+    return None
+
 def get_hwmon_paths():
     """Dynamically scan hwmon interfaces to find temperature and fan speed sources."""
     hwmon_paths = {"cpu_temp": None, "fan": None, "gpu_temp": None}
@@ -350,7 +365,6 @@ def get_system_stats():
 class CompanionRequestHandler(BaseHTTPRequestHandler):
     
     def log_message(self, format, *args):
-        # Prevent logging errors if type check fails
         try:
             if len(args) > 0:
                 msg = str(args[0])
@@ -430,6 +444,74 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                             })
                 files.sort(key=lambda x: x["name"].lower())
                 self.send_json({"files": files})
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
+                
+        elif path == "/api/saves/systems":
+            saves_root = find_saves_root()
+            if not saves_root:
+                self.send_json({"error": "No saves directory found", "systems": []}, status=404)
+                return
+                
+            systems = []
+            try:
+                with os.scandir(saves_root) as it:
+                    for entry in it:
+                        if entry.is_dir() and not entry.name.startswith(".") and not "_backup_" in entry.name:
+                            size = get_dir_size(entry.path)
+                            systems.append({
+                                "id": entry.name,
+                                "name": CONSOLE_NAMES.get(entry.name.lower(), entry.name.capitalize()),
+                                "size": size
+                            })
+                systems.sort(key=lambda x: x["name"])
+                self.send_json({"saves_root": saves_root, "systems": systems})
+            except Exception as e:
+                self.send_json({"error": str(e), "systems": []}, status=500)
+                
+        elif path == "/api/saves/download":
+            emulator = query.get("emulator", [None])[0]
+            if not emulator:
+                self.send_json({"error": "Missing emulator parameter"}, status=400)
+                return
+                
+            saves_root = find_saves_root()
+            if not saves_root:
+                self.send_json({"error": "No saves directory found"}, status=404)
+                return
+                
+            emulator_path = os.path.join(saves_root, emulator)
+            real_emulator_path = os.path.realpath(emulator_path)
+            real_saves_root = os.path.realpath(saves_root)
+            
+            if not real_emulator_path.startswith(real_saves_root) or not os.path.exists(real_emulator_path):
+                self.send_json({"error": "Access Denied / Invalid Emulator Folder"}, status=403)
+                return
+                
+            try:
+                import io
+                import zipfile
+                
+                memory_file = io.BytesIO()
+                with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                    for root, dirs, files in os.walk(real_emulator_path):
+                        if "_backup_" in root:
+                            continue
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            arcname = os.path.relpath(file_path, real_emulator_path)
+                            zip_file.write(file_path, arcname)
+                            
+                memory_file.seek(0)
+                zip_data = memory_file.getvalue()
+                
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Disposition", f"attachment; filename=saves_{emulator}.zip")
+                self.send_header("Content-Length", str(len(zip_data)))
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                self.wfile.write(zip_data)
             except Exception as e:
                 self.send_json({"error": str(e)}, status=500)
         else:
@@ -560,6 +642,65 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 self.send_json({"status": "success"})
             except Exception as e:
                 self.send_json({"error": str(e)}, status=500)
+                
+        elif path == "/api/saves/restore":
+            emulator = query.get("emulator", [None])[0]
+            if not emulator:
+                self.send_json({"error": "Missing emulator parameter"}, status=400)
+                return
+                
+            saves_root = find_saves_root()
+            if not saves_root:
+                self.send_json({"error": "Saves root not found"}, status=404)
+                return
+                
+            emulator_path = os.path.join(saves_root, emulator)
+            real_emulator_path = os.path.realpath(emulator_path)
+            real_saves_root = os.path.realpath(saves_root)
+            
+            if not real_emulator_path.startswith(real_saves_root) or not os.path.exists(real_emulator_path):
+                self.send_json({"error": "Access Denied / Invalid Emulator Folder"}, status=403)
+                return
+                
+            try:
+                import io
+                import zipfile
+                import time
+                
+                if content_length > 200 * 1024 * 1024:
+                    self.send_json({"error": "File size exceeds 200MB limit"}, status=400)
+                    return
+                    
+                zip_data = self.rfile.read(content_length)
+                zip_buffer = io.BytesIO(zip_data)
+                
+                if not zipfile.is_zipfile(zip_buffer):
+                    self.send_json({"error": "Uploaded file is not a valid ZIP file"}, status=400)
+                    return
+                
+                timestamp = time.strftime("%Y%m%d_%H%M%S")
+                backup_path = f"{real_emulator_path}_backup_{timestamp}"
+                
+                shutil.copytree(real_emulator_path, backup_path)
+                
+                with os.scandir(real_emulator_path) as it:
+                    for entry in it:
+                        if "_backup_" in entry.name:
+                            continue
+                        if entry.is_file() or entry.is_symlink():
+                            os.remove(entry.path)
+                        elif entry.is_dir():
+                            shutil.rmtree(entry.path)
+                            
+                with zipfile.ZipFile(zip_buffer) as zf:
+                    zf.extractall(real_emulator_path)
+                    
+                self.send_json({
+                    "status": "success",
+                    "backup_created": os.path.basename(backup_path)
+                })
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
         else:
             self.send_error(404, "API Endpoint Not Found")
 
@@ -630,6 +771,7 @@ def main():
     print("  1. Transfer ROMs to your Steam Deck via Wi-Fi.")
     print("  2. Monitor temperatures, RAM, and Battery Health.")
     print("  3. Clean up orphaned shader caches / compatdata.")
+    print("  4. Backup and restore emulator save games.")
     print("=" * 60)
     print("Press Ctrl+C to stop the server.")
     

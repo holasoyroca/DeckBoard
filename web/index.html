@@ -39,6 +39,14 @@
                     </svg>
                     <span>Gestor de ROMs</span>
                 </button>
+                <button class="nav-item" data-tab="saves">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    <span>Partidas Guardadas</span>
+                </button>
                 <button class="nav-item" data-tab="shaders">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
@@ -269,7 +277,69 @@
                 </div>
             </section>
 
-            <!-- TAB 3: SHADERS -->
+            <!-- TAB 3: SAVES -->
+            <section id="tab-saves" class="tab-panel">
+                <div class="shader-cleaner-container glass-card">
+                    <div class="shader-header">
+                        <div>
+                            <h2>Gestor de Partidas Guardadas (Saves)</h2>
+                            <p class="subtitle">Descarga respaldos de tus emuladores o restaura archivos anteriores cómodamente.</p>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning" style="background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.2); color: #93c5fd;">
+                        <div class="alert-icon">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
+                        </div>
+                        <div class="alert-content">
+                            <strong>Seguridad ante todo:</strong> Al subir y restaurar un archivo de guardado (`.zip`), DeckBoard creará automáticamente una copia de seguridad local (carpeta con marca de tiempo) en tu Steam Deck antes de sobreescribirla. ¡Nunca perderás tus horas de juego!
+                        </div>
+                    </div>
+
+                    <!-- Saves Loading -->
+                    <div class="shader-loading" id="saves-loading">
+                        <div class="spinner"></div>
+                        <p>Buscando directorios de guardado de emuladores...</p>
+                    </div>
+
+                    <!-- Saves Empty State -->
+                    <div class="shader-empty" id="saves-empty" style="display: none;">
+                        <div class="empty-icon">
+                            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M21 16V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"></path>
+                            </svg>
+                        </div>
+                        <h3>No se encontraron carpetas de EmuDeck</h3>
+                        <p>Asegúrate de tener EmuDeck instalado y haber iniciado los emuladores al menos una vez.</p>
+                    </div>
+
+                    <!-- Saves Table List -->
+                    <div class="shader-list-view" id="saves-list-view" style="display: none;">
+                        <div class="table-container">
+                            <table class="rom-table">
+                                <thead>
+                                    <tr>
+                                        <th>Emulador / Sistema</th>
+                                        <th class="col-size">Espacio Guardado</th>
+                                        <th style="width: 280px; text-align: center;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="saves-table-body">
+                                    <!-- Populated via Javascript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <!-- Hidden inputs for save upload files -->
+                <input type="file" id="saves-upload-input" accept=".zip" style="display: none;">
+            </section>
+
+            <!-- TAB 4: SHADERS -->
             <section id="tab-shaders" class="tab-panel">
                 <div class="shader-cleaner-container glass-card">
                     <div class="shader-header">
@@ -361,7 +431,7 @@
                 </div>
             </section>
 
-            <!-- TAB 4: ABOUT -->
+            <!-- TAB 5: ABOUT -->
             <section id="tab-about" class="tab-panel">
                 <div class="about-container glass-card">
                     <div class="about-logo">
