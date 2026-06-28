@@ -53,6 +53,12 @@
                     </svg>
                     <span>Shader Cleaner</span>
                 </button>
+                <button class="nav-item" data-tab="bios">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+                    </svg>
+                    <span>Gestor de BIOS</span>
+                </button>
                 <button class="nav-item" data-tab="control">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"></circle>
@@ -453,6 +459,37 @@
                 </div>
             </section>
 
+
+
+            <!-- TAB: BIOS MANAGER -->
+            <section id="tab-bios" class="tab-panel">
+                <div class="shader-cleaner-container glass-card" style="margin-bottom: 1.5rem;">
+                    <div class="shader-header">
+                        <div>
+                            <h2>Gestor y Validador de Archivos BIOS</h2>
+                            <p class="subtitle">Verifica que tus emuladores tengan los archivos BIOS requeridos y sus nombres en minúsculas para evitar pantallas en negro.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.2); color: #a7f3d0; margin-bottom: 0px;">
+                        <div class="alert-icon">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
+                        </div>
+                        <div class="alert-content">
+                            <strong>Directorio de BIOS detectado:</strong> <code id="lbl-bios-path" style="background: rgba(255,255,255,0.08); padding: 0.1rem 0.4rem; border-radius: 4px; font-family: monospace; font-size: 0.8rem; word-break: break-all;">...</code>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BIOS Grid -->
+                <div class="control-grid" id="bios-systems-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem;">
+                    <!-- Populated via Javascript -->
+                </div>
+            </section>
 
             <!-- TAB: CONTROL REMOTO -->
             <section id="tab-control" class="tab-panel">

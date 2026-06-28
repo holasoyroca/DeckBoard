@@ -425,6 +425,73 @@ def flatpak_update_thread():
         FLATPAK_UPDATE_STATUS = "error"
         FLATPAK_UPDATE_LOG = str(e)
 
+BIOS_REQUIREMENTS = {
+    "playstation": {
+        "name": "Sony PlayStation (PS1)",
+        "folder": "",
+        "files": [
+            {"filename": "scph5501.bin", "desc": "BIOS recomendada (USA)"},
+            {"filename": "scph5502.bin", "desc": "BIOS recomendada (Europa)"},
+            {"filename": "scph5500.bin", "desc": "BIOS recomendada (Japón)"},
+            {"filename": "scph1001.bin", "desc": "BIOS alternativa (USA)"}
+        ]
+    },
+    "playstation2": {
+        "name": "Sony PlayStation 2 (PS2)",
+        "folder": "",
+        "files": [
+            {"filename": "scph39001.bin", "desc": "BIOS recomendada (USA)"},
+            {"filename": "scph70012.bin", "desc": "BIOS recomendada (Europa)"},
+            {"filename": "scph50009.bin", "desc": "BIOS recomendada (Asia)"}
+        ]
+    },
+    "dreamcast": {
+        "name": "Sega Dreamcast",
+        "folder": "dc",
+        "files": [
+            {"filename": "dc_boot.bin", "desc": "BIOS de arranque (Obligatorio)"},
+            {"filename": "dc_flash.bin", "desc": "Archivo flash de configuración"}
+        ]
+    },
+    "segacd": {
+        "name": "Sega CD / Mega CD",
+        "folder": "",
+        "files": [
+            {"filename": "bios_CD_U.bin", "desc": "BIOS Sega CD (USA)"},
+            {"filename": "bios_CD_E.bin", "desc": "BIOS Mega CD (Europa)"},
+            {"filename": "bios_CD_J.bin", "desc": "BIOS Mega CD (Japón)"}
+        ]
+    },
+    "saturn": {
+        "name": "Sega Saturn",
+        "folder": "",
+        "files": [
+            {"filename": "saturn_bios.bin", "desc": "BIOS Sega Saturn (Obligatorio)"}
+        ]
+    },
+    "switch": {
+        "name": "Nintendo Switch (Yuzu/Ryujinx)",
+        "folder": "yuzu/keys",
+        "files": [
+            {"filename": "prod.keys", "desc": "Claves de encriptación de juegos (Obligatorio)"},
+            {"filename": "title.keys", "desc": "Claves de títulos (Opcional)"}
+        ]
+    }
+}
+
+def find_bios_root():
+    sd_mounts = glob.glob("/run/media/deck/*")
+    for mount in sd_mounts:
+        path = os.path.join(mount, "Emulation/bios")
+        if os.path.exists(path) and os.path.isdir(path):
+            return path
+            
+    internal_path = "/home/deck/Emulation/bios"
+    if os.path.exists(internal_path) and os.path.isdir(internal_path):
+        return internal_path
+        
+    return None
+
 class CompanionRequestHandler(BaseHTTPRequestHandler):
     
     def log_message(self, format, *args):
@@ -642,6 +709,62 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 "ssh_active": get_ssh_active(),
                 "flatpak_status": FLATPAK_UPDATE_STATUS,
                 "flatpak_log": FLATPAK_UPDATE_LOG
+            })
+        elif path == "/api/bios/status":
+            bios_root = find_bios_root()
+            if not bios_root:
+                self.send_json({"error": "No BIOS directory found", "systems": {}}, status=404)
+                return
+                
+            all_files = {}
+            try:
+                for root, dirs, files in os.walk(bios_root):
+                    for file in files:
+                        full_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(full_path, bios_root)
+                        all_files[rel_path.lower()] = rel_path
+            except Exception as e:
+                self.send_json({"error": str(e), "systems": {}}, status=500)
+                return
+                
+            status_data = {}
+            for sys_key, sys_info in BIOS_REQUIREMENTS.items():
+                sys_files = []
+                for req_file in sys_info["files"]:
+                    filename = req_file["filename"]
+                    subfolder = sys_info["folder"]
+                    
+                    expected_rel = os.path.join(subfolder, filename) if subfolder else filename
+                    expected_rel_lower = expected_rel.lower()
+                    
+                    status = "missing"
+                    actual_filename = ""
+                    
+                    if expected_rel_lower in all_files:
+                        actual_rel = all_files[expected_rel_lower]
+                        actual_filename = os.path.basename(actual_rel)
+                        if actual_filename == filename:
+                            status = "present"
+                        else:
+                            status = "case_mismatch"
+                            
+                    sys_files.append({
+                        "filename": filename,
+                        "desc": req_file["desc"],
+                        "status": status,
+                        "actual_filename": actual_filename,
+                        "target_rel_path": expected_rel
+                    })
+                
+                status_data[sys_key] = {
+                    "name": sys_info["name"],
+                    "folder": sys_info["folder"],
+                    "files": sys_files
+                }
+                
+            self.send_json({
+                "bios_root": bios_root,
+                "systems": status_data
             })
         else:
             self.send_error(404, "API Endpoint Not Found")
@@ -970,6 +1093,84 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
             if FLATPAK_UPDATE_STATUS != "updating":
                 threading.Thread(target=flatpak_update_thread).start()
             self.send_json({"status": "success", "flatpak_status": FLATPAK_UPDATE_STATUS})
+        elif path == "/api/bios/upload":
+            target_rel_path = query.get("target_rel_path", [None])[0]
+            if not target_rel_path:
+                self.send_json({"error": "Missing target_rel_path parameter"}, status=400)
+                return
+                
+            bios_root = find_bios_root()
+            if not bios_root:
+                self.send_json({"error": "BIOS root not found"}, status=404)
+                return
+                
+            dest_file = os.path.join(bios_root, target_rel_path)
+            real_dest = os.path.realpath(dest_file)
+            real_bios_root = os.path.realpath(bios_root)
+            
+            # Prevent path traversal
+            if not real_dest.startswith(real_bios_root):
+                self.send_json({"error": "Access Denied / Invalid BIOS Path"}, status=403)
+                return
+                
+            try:
+                # Ensure the parent directory exists
+                os.makedirs(os.path.dirname(real_dest), exist_ok=True)
+                
+                remaining = content_length
+                with open(real_dest, "wb") as f:
+                    while remaining > 0:
+                        chunk_size = min(remaining, 65536)
+                        chunk = self.rfile.read(chunk_size)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        remaining -= len(chunk)
+                        
+                self.send_json({"status": "success", "file": target_rel_path})
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
+                
+        elif path == "/api/bios/fix_case":
+            if content_length == 0:
+                self.send_json({"error": "Missing post data"}, status=400)
+                return
+                
+            try:
+                body = self.rfile.read(content_length).decode('utf-8')
+                data = json.loads(body)
+                target_rel_path = data.get("target_rel_path")
+                actual_filename = data.get("actual_filename")
+                
+                if not target_rel_path or not actual_filename:
+                    self.send_json({"error": "Missing parameters"}, status=400)
+                    return
+                    
+                bios_root = find_bios_root()
+                if not bios_root:
+                    self.send_json({"error": "BIOS root not found"}, status=404)
+                    return
+                    
+                subfolder = os.path.dirname(target_rel_path)
+                actual_file_path = os.path.join(bios_root, subfolder, actual_filename)
+                target_file_path = os.path.join(bios_root, target_rel_path)
+                
+                real_actual = os.path.realpath(actual_file_path)
+                real_target = os.path.realpath(target_file_path)
+                real_bios_root = os.path.realpath(bios_root)
+                
+                if not real_actual.startswith(real_bios_root) or not real_target.startswith(real_bios_root):
+                    self.send_json({"error": "Access Denied"}, status=403)
+                    return
+                    
+                if not os.path.exists(real_actual):
+                    self.send_json({"error": "Source file not found"}, status=404)
+                    return
+                    
+                os.rename(real_actual, real_target)
+                self.send_json({"status": "success"})
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
         else:
             self.send_error(404, "API Endpoint Not Found")
 

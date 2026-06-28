@@ -1145,3 +1145,80 @@ body {
 .switch input:checked + .slider:before {
     transform: translateX(20px);
 }
+
+/* BIOS Manager Styles */
+.bios-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.bios-file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.bios-file-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.bios-file-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    font-family: monospace;
+}
+
+.bios-file-desc {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.badge-status {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.badge-status.present {
+    background: rgba(16, 185, 129, 0.1);
+    color: #34d399;
+}
+
+.badge-status.missing {
+    background: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+}
+
+.badge-status.mismatch {
+    background: rgba(245, 158, 11, 0.1);
+    color: #fbbf24;
+}
+
+.bios-dropzone {
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-md);
+    padding: 1.25rem 1rem;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition);
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.bios-dropzone.hover {
+    border-color: var(--primary);
+    background: rgba(0, 242, 254, 0.04);
+    color: white;
+}

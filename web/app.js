@@ -76,6 +76,10 @@ function switchTab(tab) {
         tabTitle.innerText = "Limpiador de Shaders";
         btnRefreshStats.style.display = "none";
         loadShaders(false);
+    } else if (tab === "bios") {
+        tabTitle.innerText = "Gestor y Validador de BIOS";
+        btnRefreshStats.style.display = "none";
+        loadBiosStatus();
     } else if (tab === "control") {
         tabTitle.innerText = "Control Remoto de la Deck";
         btnRefreshStats.style.display = "none";
@@ -906,10 +910,173 @@ async function powerAction(action) {
     }
 }
 
+// --- BIOS TAB LOGIC ---
+let biosData = {};
+
+async function loadBiosStatus() {
+    const grid = document.getElementById("bios-systems-grid");
+    grid.innerHTML = '<div class="shader-loading" style="grid-column: 1/-1;"><div class="spinner"></div><p>Analizando archivos BIOS de tus emuladores...</p></div>';
+    
+    try {
+        const res = await fetch("/api/bios/status");
+        if (!res.ok) throw new Error("Failed to load BIOS status");
+        const data = await res.json();
+        
+        document.getElementById("lbl-bios-path").innerText = data.bios_root || "No detectado";
+        grid.innerHTML = "";
+        biosData = data.systems || {};
+        
+        Object.keys(biosData).forEach(sysKey => {
+            const sys = biosData[sysKey];
+            const card = document.createElement("div");
+            card.className = "glass-card";
+            card.style.padding = "1.5rem";
+            card.style.display = "flex";
+            card.style.flexDirection = "column";
+            card.style.gap = "1.25rem";
+            
+            let filesHtml = "";
+            sys.files.forEach(file => {
+                let badgeClass = "missing";
+                let badgeText = "Faltante";
+                let fixButton = "";
+                
+                if (file.status === "present") {
+                    badgeClass = "present";
+                    badgeText = "Encontrado";
+                } else if (file.status === "case_mismatch") {
+                    badgeClass = "mismatch";
+                    badgeText = "Mayúsculas";
+                    fixButton = `<button class="btn btn-primary btn-sm" onclick="fixBiosCase('${sysKey}', '${file.target_rel_path}', '${file.actual_filename}')" style="padding: 0.15rem 0.4rem; font-size: 0.7rem; margin-left: 0.5rem; background: var(--secondary-grad);">Corregir</button>`;
+                }
+                
+                filesHtml += `
+                    <li class="bios-file-item" style="list-style: none;">
+                        <div class="bios-file-info">
+                            <span class="bios-file-name" style="font-family: monospace; font-size: 0.85rem; font-weight: 600;">${file.filename}</span>
+                            <span class="bios-file-desc" style="font-size: 0.75rem; opacity: 0.6;">${file.desc}</span>
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <span class="badge-status ${badgeClass}">${badgeText}</span>
+                            ${fixButton}
+                        </div>
+                    </li>
+                `;
+            });
+            
+            card.innerHTML = `
+                <div>
+                    <h3 style="font-family: var(--font-header); font-size: 1.15rem; font-weight: 700; margin-bottom: 0.25rem;">${sys.name}</h3>
+                    <p class="subtitle" style="font-size: 0.8rem;">Carpeta: <code class="code" style="font-family: monospace; font-size: 0.75rem;">bios/${sys.folder || ""}</code></p>
+                </div>
+                <ul class="bios-list" style="padding: 0; margin: 0 0 1rem 0; display: flex; flex-direction: column; gap: 0.75rem;">
+                    ${filesHtml}
+                </ul>
+                <div class="bios-dropzone" 
+                     id="dropzone-${sysKey}"
+                     ondragover="event.preventDefault(); highlightDropzone('${sysKey}', true)"
+                     ondragleave="highlightDropzone('${sysKey}', false)"
+                     ondrop="handleBiosDrop(event, '${sysKey}')">
+                    Arrastra la BIOS aquí para subirla
+                </div>
+            `;
+            
+            grid.appendChild(card);
+        });
+    } catch (err) {
+        grid.innerHTML = `<div style="color: var(--danger); font-weight: bold; padding: 2rem; text-align: center; grid-column: 1/-1;">Error al escanear BIOS: ${err.message}</div>`;
+    }
+}
+
+function highlightDropzone(sysKey, highlight) {
+    const dz = document.getElementById(`dropzone-${sysKey}`);
+    if (dz) {
+        if (highlight) dz.classList.add("hover");
+        else dz.classList.remove("hover");
+    }
+}
+
+async function handleBiosDrop(e, sysKey) {
+    e.preventDefault();
+    highlightDropzone(sysKey, false);
+    
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    
+    const system = biosData[sysKey];
+    if (!system) return;
+    
+    const uploadList = [];
+    for (let i = 0; i < files.length; i++) {
+        const droppedFile = files[i];
+        const droppedNameLower = droppedFile.name.toLowerCase();
+        
+        const match = system.files.find(f => f.filename.toLowerCase() === droppedNameLower);
+        if (match) {
+            uploadList.push({
+                file: droppedFile,
+                target_rel_path: match.target_rel_path
+            });
+        } else {
+            alert(`El archivo '${droppedFile.name}' no corresponde a ninguna BIOS conocida de ${system.name}.`);
+        }
+    }
+    
+    if (uploadList.length === 0) return;
+    
+    const dz = document.getElementById(`dropzone-${sysKey}`);
+    dz.innerText = `Subiendo ${uploadList.length} BIOS...`;
+    dz.style.color = "var(--primary)";
+    
+    try {
+        for (const item of uploadList) {
+            const url = `/api/bios/upload?target_rel_path=${encodeURIComponent(item.target_rel_path)}`;
+            const res = await fetch(url, {
+                method: "POST",
+                body: item.file
+            });
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || "Failed to upload file");
+            }
+        }
+        alert(`¡Completado! BIOS subida con éxito para ${system.name}.`);
+    } catch (err) {
+        alert("Error al subir BIOS: " + err.message);
+    } finally {
+        loadBiosStatus();
+    }
+}
+
+async function fixBiosCase(sysKey, targetRelPath, actualFilename) {
+    try {
+        const res = await fetch("/api/bios/fix_case", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                target_rel_path: targetRelPath,
+                actual_filename: actualFilename
+            })
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || "Failed to fix file case");
+        }
+        alert("¡Nombre corregido a minúsculas con éxito!");
+        loadBiosStatus();
+    } catch (err) {
+        alert("Error al corregir nombre: " + err.message);
+    }
+}
+
 // Expose actions to window context
 window.toggleMute = toggleMute;
 window.triggerFlatpakUpdate = triggerFlatpakUpdate;
 window.powerAction = powerAction;
+window.handleBiosDrop = handleBiosDrop;
+window.highlightDropzone = highlightDropzone;
+window.fixBiosCase = fixBiosCase;
+window.loadBiosStatus = loadBiosStatus;
 
 // Start application
 switchTab("stats");
