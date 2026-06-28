@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=DeckBoard
+Comment=Start DeckBoard Web Dashboard
+Exec=/home/deck/git_proyects/DeckBoard/start.sh
+Icon=steam
+Terminal=true
+Type=Application
+Categories=Utility;
