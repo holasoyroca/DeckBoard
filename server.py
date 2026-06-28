@@ -744,6 +744,15 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
             with open(real_file_path, "rb") as f:
                 self.wfile.write(f.read())
                 
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+        
+        if path.startswith("/api/"):
+            self.handle_api_post(path, parsed.query)
+        else:
+            self.send_error(404, "File Not Found")
+
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
