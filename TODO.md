@@ -6,7 +6,7 @@ Este documento detalla las funciones planificadas para las próximas versiones d
 
 ## 🚀 Próximas Características (Roadmap)
 
-### 1. 🎛️ Control Remoto de la Deck (Quick Actions) - [Prioridad: Alta]
+### 1. 🎛️ Control Remoto de la Deck (Quick Actions) - [COMPLETADO ✅]
 *   **Descripción:** Permitir al usuario realizar acciones rápidas de control de hardware de la Steam Deck de forma remota a través de la web (ideal desde el móvil).
 *   **Funciones planificadas:**
     *   Botones de energía: Apagar, reiniciar, suspender consola.
