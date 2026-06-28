@@ -80,6 +80,10 @@ function switchTab(tab) {
         tabTitle.innerText = "Gestor y Validador de BIOS";
         btnRefreshStats.style.display = "none";
         loadBiosStatus();
+    } else if (tab === "games") {
+        tabTitle.innerText = "Analizador de Espacio de Juegos";
+        btnRefreshStats.style.display = "none";
+        loadGamesSpace();
     } else if (tab === "control") {
         tabTitle.innerText = "Control Remoto de la Deck";
         btnRefreshStats.style.display = "none";
@@ -1107,6 +1111,133 @@ async function handleBiosGlobalRestore(event) {
     }
 }
 
+// --- GAMES SPACE ANALYZER TAB LOGIC ---
+async function loadGamesSpace() {
+    const tbody = document.getElementById("games-table-body");
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="4" style="text-align: center; padding: 3rem;">
+                <div class="spinner" style="margin: 0 auto 1rem auto;"></div>
+                <p>Analizando juegos de Steam y calculando espacios en disco...</p>
+            </td>
+        </tr>
+    `;
+    
+    try {
+        const res = await fetch("/api/games/space_analyzer");
+        if (!res.ok) throw new Error("Failed to load games space analyzer data");
+        const data = await res.json();
+        
+        tbody.innerHTML = "";
+        const games = data.games || [];
+        
+        if (games.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        No se detectaron juegos de Steam instalados en este sistema.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        games.forEach(game => {
+            const tr = document.createElement("tr");
+            
+            const sizeGame = formatBytes(game.game_size);
+            const sizeShader = formatBytes(game.shader_size);
+            const sizeCompat = formatBytes(game.compat_size);
+            const sizeTotal = formatBytes(game.total_size);
+            
+            const total = game.total_size || 1;
+            const pctGame = ((game.game_size / total) * 100).toFixed(1);
+            const pctShader = ((game.shader_size / total) * 100).toFixed(1);
+            const pctCompat = ((game.compat_size / total) * 100).toFixed(1);
+            
+            const storageBadge = game.storage === "MicroSD" 
+                ? `<span class="badge" style="background: rgba(167, 139, 250, 0.15); color: #c084fc; font-size: 0.7rem; margin-left: 0.5rem;">MicroSD</span>`
+                : `<span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.7rem; margin-left: 0.5rem;">SSD</span>`;
+                
+            const disableShader = game.shader_size === 0 ? "disabled" : "";
+            const disableCompat = game.compat_size === 0 ? "disabled" : "";
+            
+            tr.innerHTML = `
+                <td>
+                    <div style="font-weight: 600; font-size: 0.95rem; color: white;">${game.name}</div>
+                    <div style="font-size: 0.75rem; opacity: 0.5; display: flex; align-items: center; margin-top: 0.15rem;">
+                        AppID: ${game.appid} ${storageBadge}
+                    </div>
+                </td>
+                <td style="text-align: right; font-weight: 700; color: var(--primary); font-size: 0.95rem;">
+                    ${sizeTotal}
+                </td>
+                <td>
+                    <div class="space-bar-stacked">
+                        <div class="space-fill game-fill" style="width: ${pctGame}%" title="Archivos del Juego: ${pctGame}%"></div>
+                        <div class="space-fill shader-fill" style="width: ${pctShader}%" title="Shaders: ${pctShader}%"></div>
+                        <div class="space-fill compat-fill" style="width: ${pctCompat}%" title="Compatdata: ${pctCompat}%"></div>
+                    </div>
+                    <div class="space-legend">
+                        <span class="space-legend-game">Juego: ${sizeGame} (${pctGame}%)</span>
+                        <span class="space-legend-shader">Shaders: ${sizeShader} (${pctShader}%)</span>
+                        <span class="space-legend-compat">Compat: ${sizeCompat} (${pctCompat}%)</span>
+                    </div>
+                </td>
+                <td style="text-align: center;">
+                    <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                        <button class="btn btn-secondary btn-sm" onclick="cleanGameCache('${game.appid}', true, false, '${game.name.replace(/'/g, "\\'")}')" ${disableShader} style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">
+                            Borrar Shaders
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="cleanGameCache('${game.appid}', false, true, '${game.name.replace(/'/g, "\\'")}')" ${disableCompat} style="padding: 0.3rem 0.6rem; font-size: 0.75rem; border-color: rgba(239, 68, 68, 0.2); color: #f87171;">
+                            Borrar Prefijo
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align: center; color: var(--danger); font-weight: bold; padding: 3rem;">
+                    Error al cargar datos: ${err.message}
+                </td>
+            </tr>
+        `;
+    }
+}
+
+async function cleanGameCache(appid, cleanShaders, cleanCompat, gameName) {
+    let actionText = cleanShaders ? "los Shaders" : "el prefijo Proton (compatdata)";
+    let warning = cleanCompat ? "\n¡ADVERTENCIA! Al borrar el prefijo se borrarán tus partidas guardadas locales del juego si no usa Steam Cloud. ¿Deseas continuar?" : "";
+    
+    if (!confirm(`¿Estás seguro de que deseas limpiar ${actionText} para "${gameName}"?${warning}`)) {
+        return;
+    }
+    
+    try {
+        const res = await fetch("/api/games/clean_cache", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                appid: appid,
+                clean_shaders: cleanShaders,
+                clean_compatdata: cleanCompat
+            })
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || "Failed to clean cache");
+        }
+        
+        alert(`Limpieza completada para "${gameName}" con éxito.`);
+        loadGamesSpace();
+    } catch (err) {
+        alert("Error al limpiar cachés: " + err.message);
+    }
+}
+
 // Expose actions to window context
 window.toggleMute = toggleMute;
 window.triggerFlatpakUpdate = triggerFlatpakUpdate;
@@ -1118,6 +1249,8 @@ window.loadBiosStatus = loadBiosStatus;
 window.downloadBiosGlobalBackup = downloadBiosGlobalBackup;
 window.triggerBiosGlobalRestore = triggerBiosGlobalRestore;
 window.handleBiosGlobalRestore = handleBiosGlobalRestore;
+window.loadGamesSpace = loadGamesSpace;
+window.cleanGameCache = cleanGameCache;
 
 // Start application
 switchTab("stats");

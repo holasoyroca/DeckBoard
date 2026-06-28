@@ -800,6 +800,72 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(zip_data)
             except Exception as e:
                 self.send_json({"error": str(e)}, status=500)
+        elif path == "/api/games/space_analyzer":
+            try:
+                paths = [
+                    os.path.expanduser("~/.steam/steam/steamapps"),
+                    os.path.expanduser("~/.local/share/Steam/steamapps")
+                ]
+                sd_mounts = glob.glob("/run/media/deck/*")
+                for sd in sd_mounts:
+                    sd_steamapps = os.path.join(sd, "steamapps")
+                    if os.path.exists(sd_steamapps):
+                        paths.append(sd_steamapps)
+                        
+                results = []
+                for base_path in paths:
+                    if not os.path.exists(base_path):
+                        continue
+                        
+                    is_sd = base_path.startswith("/run/media/")
+                    storage_label = "MicroSD" if is_sd else "SSD Interno"
+                    
+                    manifests = glob.glob(os.path.join(base_path, "appmanifest_*.acf"))
+                    for manifest in manifests:
+                        try:
+                            with open(manifest, "r", encoding="utf-8", errors="ignore") as f:
+                                content = f.read()
+                                
+                            appid_match = re.search(r'"appid"\s+"(\d+)"', content)
+                            name_match = re.search(r'"name"\s+"([^"]+)"', content)
+                            installdir_match = re.search(r'"installdir"\s+"([^"]+)"', content)
+                            size_match = re.search(r'"SizeOnDisk"\s+"(\d+)"', content)
+                            
+                            if appid_match and name_match:
+                                appid = appid_match.group(1)
+                                name = name_match.group(1)
+                                installdir = installdir_match.group(1) if installdir_match else name
+                                
+                                game_size = int(size_match.group(1)) if size_match else 0
+                                common_path = os.path.join(base_path, "common", installdir)
+                                shader_path = os.path.join(base_path, "shadercache", appid)
+                                compat_path = os.path.join(base_path, "compatdata", appid)
+                                
+                                shader_size = get_dir_size(shader_path) if os.path.exists(shader_path) else 0
+                                compat_size = get_dir_size(compat_path) if os.path.exists(compat_path) else 0
+                                
+                                if game_size == 0 and os.path.exists(common_path):
+                                    game_size = get_dir_size(common_path)
+                                    
+                                results.append({
+                                    "appid": appid,
+                                    "name": name,
+                                    "storage": storage_label,
+                                    "game_size": game_size,
+                                    "shader_size": shader_size,
+                                    "compat_size": compat_size,
+                                    "total_size": game_size + shader_size + compat_size,
+                                    "shader_path": shader_path,
+                                    "compat_path": compat_path
+                                })
+                        except Exception as e:
+                            print(f"Error parsing game spaces {manifest}: {e}", file=sys.stderr)
+                            continue
+                            
+                results.sort(key=lambda x: x["total_size"], reverse=True)
+                self.send_json({"games": results})
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
         else:
             self.send_error(404, "API Endpoint Not Found")
 
@@ -1271,6 +1337,53 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                                 shutil.copyfileobj(source, target)
                                 
                 self.send_json({"status": "success"})
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
+        elif path == "/api/games/clean_cache":
+            if content_length == 0:
+                self.send_json({"error": "Missing post data"}, status=400)
+                return
+                
+            try:
+                body = self.rfile.read(content_length).decode('utf-8')
+                data = json.loads(body)
+                appid = data.get("appid")
+                clean_shaders = bool(data.get("clean_shaders", False))
+                clean_compat = bool(data.get("clean_compatdata", False))
+                
+                if not appid or not re.match(r"^\d+$", appid):
+                    self.send_json({"error": "Invalid AppID"}, status=400)
+                    return
+                    
+                paths = [
+                    os.path.expanduser("~/.steam/steam/steamapps"),
+                    os.path.expanduser("~/.local/share/Steam/steamapps")
+                ]
+                sd_mounts = glob.glob("/run/media/deck/*")
+                for sd in sd_mounts:
+                    sd_steamapps = os.path.join(sd, "steamapps")
+                    if os.path.exists(sd_steamapps):
+                        paths.append(sd_steamapps)
+                        
+                deleted_folders = []
+                for base_path in paths:
+                    if clean_shaders:
+                        shader_path = os.path.join(base_path, "shadercache", appid)
+                        if os.path.exists(shader_path) and os.path.isdir(shader_path):
+                            real_path = os.path.realpath(shader_path)
+                            if real_path.endswith(f"/shadercache/{appid}"):
+                                shutil.rmtree(real_path)
+                                deleted_folders.append("shaders")
+                                
+                    if clean_compat:
+                        compat_path = os.path.join(base_path, "compatdata", appid)
+                        if os.path.exists(compat_path) and os.path.isdir(compat_path):
+                            real_path = os.path.realpath(compat_path)
+                            if real_path.endswith(f"/compatdata/{appid}"):
+                                shutil.rmtree(real_path)
+                                deleted_folders.append("compatdata")
+                                
+                self.send_json({"status": "success", "cleaned": deleted_folders})
             except Exception as e:
                 self.send_json({"error": str(e)}, status=500)
         else:

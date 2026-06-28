@@ -1222,3 +1222,66 @@ body {
     background: rgba(0, 242, 254, 0.04);
     color: white;
 }
+
+/* Stacked Space Bar Styles */
+.space-bar-stacked {
+    display: flex;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 0.4rem;
+}
+
+.space-fill {
+    height: 100%;
+    transition: width 0.5s ease;
+}
+
+.space-fill.game-fill {
+    background: #00f2fe;
+    background: linear-gradient(90deg, #0072ff, #00f2fe);
+}
+
+.space-fill.shader-fill {
+    background: #b5179e;
+    background: linear-gradient(90deg, #7209b7, #b5179e);
+}
+
+.space-fill.compat-fill {
+    background: #f72585;
+    background: linear-gradient(90deg, #f72585, #ff758f);
+}
+
+.space-legend {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.space-legend span {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.space-legend span::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.space-legend-game::before {
+    background: #00f2fe;
+}
+
+.space-legend-shader::before {
+    background: #b5179e;
+}
+
+.space-legend-compat::before {
+    background: #f72585;
+}

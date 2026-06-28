@@ -59,6 +59,14 @@
                     </svg>
                     <span>Gestor de BIOS</span>
                 </button>
+                <button class="nav-item" data-tab="games">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                    <span>Espacio de Juegos</span>
+                </button>
                 <button class="nav-item" data-tab="control">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"></circle>
@@ -504,6 +512,56 @@
                 <!-- BIOS Grid -->
                 <div class="control-grid" id="bios-systems-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem;">
                     <!-- Populated via Javascript -->
+                </div>
+            </section>
+
+
+            <!-- TAB: GAMES SPACE ANALYZER -->
+            <section id="tab-games" class="tab-panel">
+                <div class="shader-cleaner-container glass-card" style="margin-bottom: 1.5rem;">
+                    <div class="shader-header">
+                        <div>
+                            <h2>Analizador de Espacio de Juegos</h2>
+                            <p class="subtitle">Inspecciona el espacio real en disco ocupado por cada juego de Steam, sus Shaders y sus prefijos Proton (compatdata).</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="loadGamesSpace()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem;">
+                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+                            </svg>
+                            <span>Actualizar</span>
+                        </button>
+                    </div>
+
+                    <div class="alert alert-warning" style="background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.2); color: #93c5fd; margin-bottom: 0px;">
+                        <div class="alert-icon">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
+                        </div>
+                        <div class="alert-content">
+                            <strong>Libera espacio quirúrgicamente:</strong> Puedes eliminar los shaders o el prefijo de compatdata de cualquier juego de forma individual. Si eliminas el `compatdata`, se borrarán los datos guardados del juego que no usen Steam Cloud (los archivos instalados del juego no se tocan).
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Juego / Biblioteca</th>
+                                    <th style="width: 120px; text-align: right;">Espacio Total</th>
+                                    <th style="min-width: 250px;">Desglose de Almacenamiento</th>
+                                    <th style="width: 240px; text-align: center;">Acciones de Limpieza</th>
+                                </tr>
+                            </thead>
+                            <tbody id="games-table-body">
+                                <!-- Populated via Javascript -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
 
