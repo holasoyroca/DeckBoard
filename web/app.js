@@ -495,9 +495,58 @@ savesUploadInput.addEventListener("change", async (e) => {
     }
 });
 
+function downloadGlobalBackup() {
+    window.location.href = "/api/saves/download_global";
+}
+
+function triggerGlobalRestore() {
+    const input = document.getElementById("saves-global-upload-input");
+    input.value = "";
+    input.click();
+}
+
+document.getElementById("saves-global-upload-input").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        if (!file.name.endsWith(".zip")) {
+            alert("Por favor selecciona un archivo comprimido .zip válido para la restauración global.");
+            return;
+        }
+        
+        if (!confirm("¿Estás seguro de que deseas restaurar TODOS los guardados de emuladores? Se sobreescribirán los guardados locales actuales. (Se creará una copia de seguridad global en la Steam Deck por seguridad).")) {
+            return;
+        }
+        
+        savesLoading.style.display = "flex";
+        savesListView.style.display = "none";
+        savesLoading.querySelector("p").innerText = "Restaurando todas las partidas y creando backup global local...";
+        
+        try {
+            const res = await fetch("/api/saves/restore_global", {
+                method: "POST",
+                body: file
+            });
+            
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || "Failed to restore global saves");
+            }
+            
+            const data = await res.json();
+            alert(`¡Todos los guardados restaurados con éxito!\nSe ha guardado un respaldo global de tus guardados anteriores en:\n${data.backup_created}`);
+            loadSaves();
+        } catch (err) {
+            alert("Error al restaurar respaldo global: " + err.message);
+            loadSaves();
+        }
+    }
+});
+
 // Expose functions globally for inline HTML click attributes
 window.downloadSaves = downloadSaves;
 window.triggerRestoreSaves = triggerRestoreSaves;
+window.downloadGlobalBackup = downloadGlobalBackup;
+window.triggerGlobalRestore = triggerGlobalRestore;
 
 // --- SHADERS TAB LOGIC ---
 const btnRescanShaders = document.getElementById("btn-rescan-shaders");

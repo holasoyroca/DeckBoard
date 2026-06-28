@@ -285,6 +285,20 @@
                             <h2>Gestor de Partidas Guardadas (Saves)</h2>
                             <p class="subtitle">Descarga respaldos de tus emuladores o restaura archivos anteriores cómodamente.</p>
                         </div>
+                        <div style="display: flex; gap: 0.75rem;">
+                            <button class="btn btn-secondary" onclick="downloadGlobalBackup()">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path>
+                                </svg>
+                                <span>Respaldar Todo</span>
+                            </button>
+                            <button class="btn btn-primary" onclick="triggerGlobalRestore()">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"></path>
+                                </svg>
+                                <span>Restaurar Todo</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="alert alert-warning" style="background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.2); color: #93c5fd;">
@@ -337,6 +351,7 @@
                 </div>
                 <!-- Hidden inputs for save upload files -->
                 <input type="file" id="saves-upload-input" accept=".zip" style="display: none;">
+                <input type="file" id="saves-global-upload-input" accept=".zip" style="display: none;">
             </section>
 
             <!-- TAB 4: SHADERS -->

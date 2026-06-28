@@ -514,6 +514,38 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(zip_data)
             except Exception as e:
                 self.send_json({"error": str(e)}, status=500)
+        elif path == "/api/saves/download_global":
+            saves_root = find_saves_root()
+            if not saves_root:
+                self.send_json({"error": "No saves directory found"}, status=404)
+                return
+                
+            try:
+                import io
+                import zipfile
+                
+                memory_file = io.BytesIO()
+                with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                    for root, dirs, files in os.walk(saves_root):
+                        if any("_backup_" in part for part in root.split(os.sep)):
+                            continue
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            arcname = os.path.relpath(file_path, saves_root)
+                            zip_file.write(file_path, arcname)
+                            
+                memory_file.seek(0)
+                zip_data = memory_file.getvalue()
+                
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Disposition", "attachment; filename=saves_global_backup.zip")
+                self.send_header("Content-Length", str(len(zip_data)))
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                self.wfile.write(zip_data)
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
         else:
             self.send_error(404, "API Endpoint Not Found")
 
@@ -698,6 +730,62 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 self.send_json({
                     "status": "success",
                     "backup_created": os.path.basename(backup_path)
+                })
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
+        elif path == "/api/saves/restore_global":
+            saves_root = find_saves_root()
+            if not saves_root:
+                self.send_json({"error": "Saves root not found"}, status=404)
+                return
+                
+            try:
+                import io
+                import zipfile
+                import time
+                
+                if content_length > 500 * 1024 * 1024:
+                    self.send_json({"error": "File size exceeds 500MB limit"}, status=400)
+                    return
+                    
+                zip_data = self.rfile.read(content_length)
+                zip_buffer = io.BytesIO(zip_data)
+                
+                if not zipfile.is_zipfile(zip_buffer):
+                    self.send_json({"error": "Uploaded file is not a valid ZIP file"}, status=400)
+                    return
+                
+                # Create a global backup
+                timestamp = time.strftime("%Y%m%d_%H%M%S")
+                parent_dir = os.path.dirname(saves_root)
+                global_backup_path = os.path.join(parent_dir, f"saves_global_backup_{timestamp}")
+                
+                def ignore_backups(directory, contents):
+                    ignored = []
+                    for name in contents:
+                        if "_backup_" in name:
+                            ignored.append(name)
+                    return ignored
+                    
+                shutil.copytree(saves_root, global_backup_path, ignore=ignore_backups)
+                
+                # Delete active directories (not backups)
+                with os.scandir(saves_root) as it:
+                    for entry in it:
+                        if "_backup_" in entry.name:
+                            continue
+                        if entry.is_file() or entry.is_symlink():
+                            os.remove(entry.path)
+                        elif entry.is_dir():
+                            shutil.rmtree(entry.path)
+                            
+                # Extract zip to saves root
+                with zipfile.ZipFile(zip_buffer) as zf:
+                    zf.extractall(saves_root)
+                    
+                self.send_json({
+                    "status": "success",
+                    "backup_created": os.path.basename(global_backup_path)
                 })
             except Exception as e:
                 self.send_json({"error": str(e)}, status=500)
