@@ -766,6 +766,40 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 "bios_root": bios_root,
                 "systems": status_data
             })
+        elif path == "/api/bios/download_global":
+            bios_root = find_bios_root()
+            if not bios_root:
+                self.send_json({"error": "No BIOS directory found"}, status=404)
+                return
+                
+            try:
+                import io
+                import zipfile
+                
+                memory_file = io.BytesIO()
+                with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as bios_zip:
+                    for root, dirs, files in os.walk(bios_root, followlinks=True):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            arcname = os.path.relpath(file_path, bios_root)
+                            try:
+                                bios_zip.write(file_path, arcname)
+                            except Exception as e:
+                                print(f"Error zipping BIOS file {file_path}: {e}", file=sys.stderr)
+                                continue
+                                
+                memory_file.seek(0)
+                zip_data = memory_file.getvalue()
+                
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Disposition", "attachment; filename=bios_global_backup.zip")
+                self.send_header("Content-Length", str(len(zip_data)))
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                self.wfile.write(zip_data)
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
         else:
             self.send_error(404, "API Endpoint Not Found")
 
@@ -1176,6 +1210,66 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                     return
                     
                 os.rename(norm_actual, norm_target)
+                self.send_json({"status": "success"})
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
+        elif path == "/api/bios/restore_global":
+            bios_root = find_bios_root()
+            if not bios_root:
+                self.send_json({"error": "No BIOS directory found"}, status=404)
+                return
+                
+            try:
+                import io
+                import zipfile
+                import shutil
+                from datetime import datetime
+                
+                zip_buffer = io.BytesIO()
+                remaining = content_length
+                while remaining > 0:
+                    chunk_size = min(remaining, 65536)
+                    chunk = self.rfile.read(chunk_size)
+                    if not chunk:
+                        break
+                    zip_buffer.write(chunk)
+                    remaining -= len(chunk)
+                zip_buffer.seek(0)
+                
+                if not zipfile.is_zipfile(zip_buffer):
+                    self.send_json({"error": "Invalid zip file format"}, status=400)
+                    return
+                    
+                # Create backup of current bios folder first
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                parent_dir = os.path.dirname(bios_root)
+                global_backup_path = os.path.join(parent_dir, f"bios_global_backup_{timestamp}")
+                
+                try:
+                    shutil.copytree(bios_root, global_backup_path, symlinks=True)
+                except Exception as e:
+                    print(f"Warning: BIOS backup failed: {e}", file=sys.stderr)
+                    
+                with zipfile.ZipFile(zip_buffer) as bz:
+                    for member in bz.infolist():
+                        target_path = os.path.join(bios_root, member.filename)
+                        norm_target = os.path.normpath(target_path)
+                        norm_bios_root = os.path.normpath(bios_root)
+                        
+                        if not norm_target.startswith(norm_bios_root):
+                            continue
+                            
+                        parent_dir = os.path.dirname(norm_target)
+                        if os.path.islink(parent_dir):
+                            real_target_dir = os.path.realpath(parent_dir)
+                            os.makedirs(real_target_dir, exist_ok=True)
+                        else:
+                            os.makedirs(parent_dir, exist_ok=True)
+                            
+                        if not member.filename.endswith('/'):
+                            with bz.open(member) as source, open(norm_target, "wb") as target:
+                                shutil.copyfileobj(source, target)
+                                
                 self.send_json({"status": "success"})
             except Exception as e:
                 self.send_json({"error": str(e)}, status=500)

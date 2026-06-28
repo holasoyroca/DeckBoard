@@ -1069,6 +1069,44 @@ async function fixBiosCase(sysKey, targetRelPath, actualFilename) {
     }
 }
 
+function downloadBiosGlobalBackup() {
+    window.location.href = "/api/bios/download_global";
+}
+
+function triggerBiosGlobalRestore() {
+    document.getElementById("bios-restore-input").click();
+}
+
+async function handleBiosGlobalRestore(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!confirm(`¿Estás seguro de que deseas restaurar este respaldo global de BIOS?\nEsto reemplazará los archivos BIOS correspondientes (se creará una copia de seguridad en tu Steam Deck antes de continuar).`)) {
+        event.target.value = "";
+        return;
+    }
+    
+    const grid = document.getElementById("bios-systems-grid");
+    grid.innerHTML = '<div class="shader-loading" style="grid-column: 1/-1;"><div class="spinner"></div><p>Restaurando respaldo global de BIOS, no cierres esta pestaña...</p></div>';
+    
+    try {
+        const res = await fetch("/api/bios/restore_global", {
+            method: "POST",
+            body: file
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || "Failed to restore backup");
+        }
+        alert("¡Respaldo global de BIOS restaurado con éxito!");
+    } catch (err) {
+        alert("Error al restaurar respaldo global: " + err.message);
+    } finally {
+        event.target.value = "";
+        loadBiosStatus();
+    }
+}
+
 // Expose actions to window context
 window.toggleMute = toggleMute;
 window.triggerFlatpakUpdate = triggerFlatpakUpdate;
@@ -1077,6 +1115,9 @@ window.handleBiosDrop = handleBiosDrop;
 window.highlightDropzone = highlightDropzone;
 window.fixBiosCase = fixBiosCase;
 window.loadBiosStatus = loadBiosStatus;
+window.downloadBiosGlobalBackup = downloadBiosGlobalBackup;
+window.triggerBiosGlobalRestore = triggerBiosGlobalRestore;
+window.handleBiosGlobalRestore = handleBiosGlobalRestore;
 
 // Start application
 switchTab("stats");

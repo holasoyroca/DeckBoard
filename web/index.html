@@ -469,6 +469,22 @@
                             <h2>Gestor y Validador de Archivos BIOS</h2>
                             <p class="subtitle">Verifica que tus emuladores tengan los archivos BIOS requeridos y sus nombres en minúsculas para evitar pantallas en negro.</p>
                         </div>
+                        <div style="display: flex; gap: 0.75rem; align-items: center;">
+                            <button class="btn btn-secondary" onclick="downloadBiosGlobalBackup()">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path>
+                                </svg>
+                                <span>Respaldar Todas</span>
+                            </button>
+                            <button class="btn btn-primary" onclick="triggerBiosGlobalRestore()">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"></path>
+                                </svg>
+                                <span>Restaurar Respaldo</span>
+                            </button>
+                            <!-- Hidden File Input for Global Restore -->
+                            <input type="file" id="bios-restore-input" accept=".zip" style="display: none;" onchange="handleBiosGlobalRestore(event)">
+                        </div>
                     </div>
                     
                     <div class="alert alert-warning" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.2); color: #a7f3d0; margin-bottom: 0px;">
