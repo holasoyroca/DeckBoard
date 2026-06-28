@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeckBoard • Steam Deck Web Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                        <path d="M6 12h12M12 6v12"></path>
+                    </svg>
+                </div>
+                <h2>DeckBoard</h2>
+            </div>
+            
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="stats">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="9"></rect>
+                        <rect x="14" y="3" width="7" height="5"></rect>
+                        <rect x="14" y="12" width="7" height="9"></rect>
+                        <rect x="3" y="16" width="7" height="5"></rect>
+                    </svg>
+                    <span>Estadísticas</span>
+                </button>
+                <button class="nav-item" data-tab="roms">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <span>Gestor de ROMs</span>
+                </button>
+                <button class="nav-item" data-tab="shaders">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+                    </svg>
+                    <span>Shader Cleaner</span>
+                </button>
+                <button class="nav-item" data-tab="about">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    <span>Información</span>
+                </button>
+            </nav>
+            
+            <div class="connection-status card">
+                <div class="status-indicator">
+                    <span class="pulse-dot"></span>
+                    <span class="status-text">Conectado</span>
+                </div>
+                <div class="ip-info" id="deck-ip-display">IP: ...</div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- HEADER -->
+            <header class="content-header">
+                <div class="header-title">
+                    <span class="breadcrumb">Steam Deck</span>
+                    <h1 id="tab-title">Dashboard del Sistema</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" id="btn-refresh-stats">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                        <span>Actualizar</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- TAB 1: STATS -->
+            <section id="tab-stats" class="tab-panel active">
+                <div class="stats-grid">
+                    <!-- CPU Card -->
+                    <div class="stat-card glass-card">
+                        <div class="card-header">
+                            <h3>Uso de CPU</h3>
+                            <div class="card-icon cpu">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+                                    <rect x="9" y="9" width="6" height="6"></rect>
+                                    <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="large-value" id="val-cpu-usage">--%</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" id="bar-cpu" style="width: 0%"></div>
+                            </div>
+                            <div class="sub-info">APU Temp: <span id="val-cpu-temp">--</span>°C</div>
+                        </div>
+                    </div>
+
+                    <!-- GPU Card -->
+                    <div class="stat-card glass-card">
+                        <div class="card-header">
+                            <h3>Gráficos (GPU)</h3>
+                            <div class="card-icon gpu">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                                    <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                                    <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="large-value" id="val-gpu-temp">--°C</div>
+                            <div class="sub-info-grid">
+                                <div>Ventilador: <span id="val-fan">--</span> RPM</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RAM Card -->
+                    <div class="stat-card glass-card">
+                        <div class="card-header">
+                            <h3>Memoria RAM</h3>
+                            <div class="card-icon ram">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M23 3H1v18h22V3zm-2 16H3V5h18v14zM6 8h3v3H6zm5 0h3v3h-3zm5 0h3v3h-3z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="large-value" id="val-ram-usage">--%</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" id="bar-ram" style="width: 0%"></div>
+                            </div>
+                            <div class="sub-info">Usado: <span id="val-ram-used">--</span> GB / <span id="val-ram-total">--</span> GB</div>
+                        </div>
+                    </div>
+
+                    <!-- Battery Card -->
+                    <div class="stat-card glass-card">
+                        <div class="card-header">
+                            <h3>Batería</h3>
+                            <div class="card-icon battery">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="1" y="6" width="18" height="12" rx="2" ry="2"></rect>
+                                    <line x1="23" y1="11" x2="23" y2="13"></line>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="large-value" id="val-bat-percent">--%</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" id="bar-bat" style="width: 0%"></div>
+                            </div>
+                            <div class="sub-info">
+                                <span id="val-bat-status">Cargando</span> • Salud: <span id="val-bat-health">--%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 class="section-title">Almacenamiento del Sistema</h2>
+                <div class="storage-row">
+                    <div class="storage-card glass-card">
+                        <div class="storage-title-row">
+                            <h3>Memoria Interna (SSD)</h3>
+                            <span class="storage-percent" id="val-internal-percent">--%</span>
+                        </div>
+                        <div class="progress-bar-container large">
+                            <div class="progress-bar-fill storage-fill" id="bar-internal" style="width: 0%"></div>
+                        </div>
+                        <div class="storage-details">
+                            <span>Usado: <strong id="val-internal-used">--</strong> GB</span>
+                            <span>Libre: <strong id="val-internal-free">--</strong> GB / <span id="val-internal-total">--</span> GB</span>
+                        </div>
+                    </div>
+
+                    <div class="storage-card glass-card" id="sd-card-panel">
+                        <div class="storage-title-row">
+                            <h3>Tarjeta Micro SD</h3>
+                            <span class="storage-percent" id="val-sd-percent">--%</span>
+                        </div>
+                        <div class="progress-bar-container large">
+                            <div class="progress-bar-fill storage-fill sd" id="bar-sd" style="width: 0%"></div>
+                        </div>
+                        <div class="storage-details">
+                            <span>Usado: <strong id="val-sd-used">--</strong> GB</span>
+                            <span>Libre: <strong id="val-sd-free">--</strong> GB / <span id="val-sd-total">--</span> GB</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: ROMS -->
+            <section id="tab-roms" class="tab-panel">
+                <div class="roms-container">
+                    <div class="consoles-sidebar glass-card">
+                        <div class="search-box">
+                            <input type="text" id="console-search" placeholder="Buscar consola...">
+                        </div>
+                        <ul class="console-list" id="console-list">
+                            <li class="loading">Cargando sistemas...</li>
+                        </ul>
+                    </div>
+
+                    <div class="roms-content">
+                        <div class="roms-empty-state" id="roms-empty-state">
+                            <div class="empty-icon">
+                                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                                </svg>
+                            </div>
+                            <h3>Selecciona una consola</h3>
+                            <p>Elige una plataforma de la lista para ver, subir y borrar tus juegos.</p>
+                        </div>
+
+                        <div class="roms-list-view" id="roms-list-view" style="display: none;">
+                            <div class="roms-header-row">
+                                <h2 id="active-console-title">Plataforma</h2>
+                                <span class="badge" id="active-console-badge">0 juegos</span>
+                            </div>
+
+                            <div class="upload-zone" id="upload-zone">
+                                <div class="upload-icon">
+                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"></path>
+                                    </svg>
+                                </div>
+                                <div class="upload-text">
+                                    <h4>Arrastra archivos aquí o haz clic para subir ROMs</h4>
+                                    <p>Soporta formatos comunes para esta plataforma (.zip, .rom, .iso, etc.)</p>
+                                </div>
+                                <input type="file" id="file-input" multiple style="display: none;">
+                            </div>
+
+                            <div class="upload-progress-container" id="upload-progress-container" style="display: none;">
+                                <h3>Subiendo archivos</h3>
+                                <div id="upload-list"></div>
+                            </div>
+
+                            <div class="rom-search-bar">
+                                <input type="text" id="rom-search" placeholder="Filtrar ROMs en esta carpeta...">
+                            </div>
+
+                            <div class="table-container">
+                                <table class="rom-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nombre del Archivo</th>
+                                            <th class="col-size">Tamaño</th>
+                                            <th class="col-actions">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rom-table-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: SHADERS -->
+            <section id="tab-shaders" class="tab-panel">
+                <div class="shader-cleaner-container glass-card">
+                    <div class="shader-header">
+                        <div>
+                            <h2>Gestor de Caché y Datos de Compatibilidad (Compatdata)</h2>
+                            <p class="subtitle">Libera espacio valioso eliminando datos residuales de juegos desinstalados.</p>
+                        </div>
+                        <button class="btn btn-primary" id="btn-rescan-shaders">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+                            </svg>
+                            <span>Escanear Caché</span>
+                        </button>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <div class="alert-icon">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"></path>
+                            </svg>
+                        </div>
+                        <div class="alert-content">
+                            <strong>¡Atención!</strong> Eliminar la carpeta <em>compatdata</em> (prefijo de Wine/Proton) de un juego instalado borrará sus partidas guardadas locales si el juego no cuenta con sincronización de Steam Cloud. Las carpetas marcadas como <strong>Huéped/Huérfano</strong> (juegos desinstalados) son 100% seguras de borrar.
+                        </div>
+                    </div>
+
+                    <div class="shader-summary-cards" id="shader-summary" style="display: none;">
+                        <div class="summary-card">
+                            <span class="label">Caché Total Encontrada</span>
+                            <span class="value" id="val-shader-total-size">0.0 GB</span>
+                        </div>
+                        <div class="summary-card highlight">
+                            <span class="label">Espacio Seguro para Limpiar (Huérfano)</span>
+                            <span class="value" id="val-shader-orphan-size">0.0 GB</span>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label">Carpetas Escaneadas</span>
+                            <span class="value" id="val-shader-folder-count">0</span>
+                        </div>
+                    </div>
+
+                    <div class="shader-loading" id="shader-loading">
+                        <div class="spinner"></div>
+                        <p>Analizando almacenamiento de Steam en busca de Shader Caches y Prefijos de Compatibilidad...</p>
+                        <p class="small">Esto puede tardar unos momentos dependiendo del tamaño de tus bibliotecas.</p>
+                    </div>
+
+                    <div class="shader-empty" id="shader-empty" style="display: none;">
+                        <div class="empty-icon">
+                            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                        </div>
+                        <h3>¡Tu almacenamiento está limpio!</h3>
+                        <p>No se encontraron datos de caché huérfanos.</p>
+                    </div>
+
+                    <div class="shader-list-view" id="shader-list-view" style="display: none;">
+                        <div class="table-actions">
+                            <div class="selection-actions">
+                                <button class="btn btn-secondary btn-sm" id="btn-select-orphans">Seleccionar Huérfanos</button>
+                                <button class="btn btn-secondary btn-sm" id="btn-deselect-all">Deseleccionar todo</button>
+                            </div>
+                            <button class="btn btn-danger" id="btn-clean-selected" disabled>
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                                <span>Eliminar seleccionados (<span id="selected-clean-count">0</span>)</span>
+                            </button>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="shader-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-check"><input type="checkbox" id="header-select-all"></th>
+                                        <th>Juego / AppID</th>
+                                        <th>Tipo</th>
+                                        <th class="col-status">Estado</th>
+                                        <th class="col-size">Tamaño</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shader-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: ABOUT -->
+            <section id="tab-about" class="tab-panel">
+                <div class="about-container glass-card">
+                    <div class="about-logo">
+                        <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="url(#logo-grad)" stroke-width="2.5">
+                            <defs>
+                                <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#00f2fe" />
+                                    <stop offset="100%" stop-color="#4facfe" />
+                                </linearGradient>
+                            </defs>
+                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                            <circle cx="12" cy="12" r="4"></circle>
+                            <line x1="12" y1="2" x2="12" y2="6"></line>
+                            <line x1="12" y1="18" x2="12" y2="22"></line>
+                        </svg>
+                        <h2>DeckBoard v1.0</h2>
+                        <p class="subtitle">Panel de control y gestor web para optimizar y transferir archivos a tu consola.</p>
+                    </div>
+
+                    <div class="about-info-grid">
+                        <div class="info-group">
+                            <h3>¿Cómo subir juegos?</h3>
+                            <p>1. Ve a la pestaña de <strong>Gestor de ROMs</strong>.</p>
+                            <p>2. Selecciona la consola objetivo de la lista lateral.</p>
+                            <p>3. Arrastra tus archivos ROM a la zona de subida o haz clic para seleccionarlos desde tu explorador de archivos. Se subirán de forma inalámbrica a la carpeta de tu tarjeta SD/SSD.</p>
+                        </div>
+
+                        <div class="info-group">
+                            <h3>¿Qué son los Shaders y Compatdata?</h3>
+                            <p><strong>Shader Cache:</strong> Compilaciones gráficas precargadas por Steam para evitar tirones durante el juego.</p>
+                            <p><strong>Compatdata:</strong> Carpetas que emulan el sistema de Windows (prefijos Wine) y almacenan las partidas guardadas de cada juego.</p>
+                            <p>DeckBoard analiza estas carpetas e identifica las que pertenecen a juegos que ya no tienes instalados en Steam (marcando los datos como <em>Huérfanos</em>) para que puedas borrarlos con seguridad.</p>
+                        </div>
+                    </div>
+
+                    <div class="ssh-setup-card">
+                        <h3>Acceso SSH / SFTP Directo</h3>
+                        <p>Para transferir archivos mediante FileZilla / Cyberduck o terminal directa, usa estos datos:</p>
+                        <div class="ssh-details">
+                            <div class="detail-item">
+                                <span class="label">Host IP:</span>
+                                <span class="value code" id="ssh-ip-info">...</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">Puerto:</span>
+                                <span class="value code">22</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">Usuario:</span>
+                                <span class="value code">deck</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">Contraseña:</span>
+                                <span class="value font-italic">La contraseña de tu usuario (configurada con el comando 'passwd')</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Global Footer -->
+            <footer class="app-footer">
+                <span>Desarrollado por <a href="https://github.com/holasoyroca" target="_blank" class="footer-link">holasoyroca</a></span>
+                <span class="separator">•</span>
+                <span>Descargar en <a href="https://github.com/holasoyroca/deckboard" target="_blank" class="footer-link">GitHub</a></span>
+            </footer>
+        </main>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
