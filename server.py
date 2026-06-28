@@ -1105,20 +1105,22 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 return
                 
             dest_file = os.path.join(bios_root, target_rel_path)
-            real_dest = os.path.realpath(dest_file)
-            real_bios_root = os.path.realpath(bios_root)
+            # Use os.path.normpath to validate path containment without resolving symlinks.
+            # This is critical because EmuDeck uses symlinks to target flatpak storage (e.g. yuzu/keys -> /home/deck/.local/share/yuzu/keys).
+            norm_dest = os.path.normpath(dest_file)
+            norm_bios_root = os.path.normpath(bios_root)
             
             # Prevent path traversal
-            if not real_dest.startswith(real_bios_root):
+            if not norm_dest.startswith(norm_bios_root):
                 self.send_json({"error": "Access Denied / Invalid BIOS Path"}, status=403)
                 return
                 
             try:
                 # Ensure the parent directory exists
-                os.makedirs(os.path.dirname(real_dest), exist_ok=True)
+                os.makedirs(os.path.dirname(norm_dest), exist_ok=True)
                 
                 remaining = content_length
-                with open(real_dest, "wb") as f:
+                with open(norm_dest, "wb") as f:
                     while remaining > 0:
                         chunk_size = min(remaining, 65536)
                         chunk = self.rfile.read(chunk_size)
@@ -1155,19 +1157,20 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 actual_file_path = os.path.join(bios_root, subfolder, actual_filename)
                 target_file_path = os.path.join(bios_root, target_rel_path)
                 
-                real_actual = os.path.realpath(actual_file_path)
-                real_target = os.path.realpath(target_file_path)
-                real_bios_root = os.path.realpath(bios_root)
+                # Validate using normpath to support symlinks
+                norm_actual = os.path.normpath(actual_file_path)
+                norm_target = os.path.normpath(target_file_path)
+                norm_bios_root = os.path.normpath(bios_root)
                 
-                if not real_actual.startswith(real_bios_root) or not real_target.startswith(real_bios_root):
+                if not norm_actual.startswith(norm_bios_root) or not norm_target.startswith(norm_bios_root):
                     self.send_json({"error": "Access Denied"}, status=403)
                     return
                     
-                if not os.path.exists(real_actual):
+                if not os.path.exists(norm_actual):
                     self.send_json({"error": "Source file not found"}, status=404)
                     return
                     
-                os.rename(real_actual, real_target)
+                os.rename(norm_actual, norm_target)
                 self.send_json({"status": "success"})
             except Exception as e:
                 self.send_json({"error": str(e)}, status=500)
