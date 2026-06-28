@@ -428,7 +428,7 @@ def flatpak_update_thread():
 BIOS_REQUIREMENTS = {
     "playstation": {
         "name": "Sony PlayStation (PS1)",
-        "folder": "",
+        "folder": "psx",
         "files": [
             {"filename": "scph5501.bin", "desc": "BIOS recomendada (USA)"},
             {"filename": "scph5502.bin", "desc": "BIOS recomendada (Europa)"},
@@ -438,7 +438,7 @@ BIOS_REQUIREMENTS = {
     },
     "playstation2": {
         "name": "Sony PlayStation 2 (PS2)",
-        "folder": "",
+        "folder": "ps2",
         "files": [
             {"filename": "scph39001.bin", "desc": "BIOS recomendada (USA)"},
             {"filename": "scph70012.bin", "desc": "BIOS recomendada (Europa)"},
