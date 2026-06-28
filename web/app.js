@@ -89,6 +89,7 @@ async function loadStats() {
         const res = await fetch("/api/stats");
         if (!res.ok) throw new Error("Failed to fetch stats");
         const data = await res.json();
+        console.log(`DeckBoard Client: v1.1.0 | Server: v${data.version}`);
         
         // Update IP address displays
         const ip = data.ssh.ip || "127.0.0.1";

@@ -15,6 +15,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 # Define base paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
+VERSION = "1.1.0"
 
 # Global variables for caching shader scan results
 SHADER_CACHE = None
@@ -378,6 +379,7 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
         
         if path == "/api/stats":
             stats = get_system_stats()
+            stats["version"] = VERSION
             self.send_json(stats)
             
         elif path == "/api/shaders":
@@ -900,7 +902,7 @@ def main():
     
     local_ip = get_local_ip()
     print("=" * 60)
-    print("           DECKBOARD - SERVER STARTED            ")
+    print("           DECKBOARD v1.1.0 - SERVER STARTED     ")
     print("=" * 60)
     print(f"  Local Access:   http://localhost:{port}")
     print(f"  Network Access: http://{local_ip}:{port}")
