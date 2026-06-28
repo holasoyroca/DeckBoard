@@ -1116,8 +1116,13 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 return
                 
             try:
-                # Ensure the parent directory exists
-                os.makedirs(os.path.dirname(norm_dest), exist_ok=True)
+                # Ensure the parent directory exists, handling symlinks robustly (even broken ones)
+                parent_dir = os.path.dirname(norm_dest)
+                if os.path.islink(parent_dir):
+                    real_target_dir = os.path.realpath(parent_dir)
+                    os.makedirs(real_target_dir, exist_ok=True)
+                else:
+                    os.makedirs(parent_dir, exist_ok=True)
                 
                 remaining = content_length
                 with open(norm_dest, "wb") as f:
