@@ -500,7 +500,13 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                         for file in files:
                             file_path = os.path.join(root, file)
                             arcname = os.path.relpath(file_path, real_emulator_path)
-                            zip_file.write(file_path, arcname)
+                            try:
+                                if os.path.islink(file_path) and not os.path.exists(file_path):
+                                    continue
+                                zip_file.write(file_path, arcname)
+                            except Exception as e:
+                                print(f"Error zipping {file_path}: {e}", file=sys.stderr)
+                                continue
                             
                 memory_file.seek(0)
                 zip_data = memory_file.getvalue()
@@ -532,7 +538,13 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                         for file in files:
                             file_path = os.path.join(root, file)
                             arcname = os.path.relpath(file_path, saves_root)
-                            zip_file.write(file_path, arcname)
+                            try:
+                                if os.path.islink(file_path) and not os.path.exists(file_path):
+                                    continue
+                                zip_file.write(file_path, arcname)
+                            except Exception as e:
+                                print(f"Error zipping {file_path}: {e}", file=sys.stderr)
+                                continue
                             
                 memory_file.seek(0)
                 zip_data = memory_file.getvalue()
