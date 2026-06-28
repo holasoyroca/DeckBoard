@@ -23,3 +23,11 @@ Este documento detalla las funciones planificadas para las próximas versiones d
     *   Ejecución segura de procesos asíncronos para evitar bloquear el servidor principal.
     *   Bloqueo o aviso al intentar ejecutar comandos destructivos.
 *   **UI sugerida:** Pestaña independiente llamada "Terminal" con estilo retro hacker y fuente monoespacio.
+
+### 3. 📁 Gestor y Validador de BIOS - [COMPLETADO ✅]
+*   **Descripción:** Inspeccionar los archivos BIOS requeridos por cada consola en EmuDeck, subirlos por Wi-Fi de forma automática y resolver conflictos de nombres.
+*   **Funciones implementadas:**
+    *   Escanear el directorio de BIOS de EmuDeck en busca de archivos esenciales (PS1, PS2, Sega CD, Sega Saturn, Dreamcast, Switch keys).
+    *   Detectar discrepancias de mayúsculas/minúsculas (case mismatches) para evitar incompatibilidades en Linux.
+    *   Zonas drag-and-drop independientes para subir e instalar archivos BIOS directamente en las carpetas correctas por Wi-Fi.
+    *   Acción rápida para corregir nombres de archivos incorrectos directamente desde la interfaz web.
