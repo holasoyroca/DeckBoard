@@ -20,6 +20,8 @@ VERSION = "1.1.0"
 # Global variables for caching shader scan results
 SHADER_CACHE = None
 IS_SCANNING = False
+FLATPAK_UPDATE_STATUS = "idle"
+FLATPAK_UPDATE_LOG = ""
 PREV_IDLE = 0
 PREV_TOTAL = 0
 
@@ -363,6 +365,66 @@ def get_system_stats():
         }
     }
 
+def get_volume():
+    try:
+        res = subprocess.run(["amixer", "sget", "Master"], capture_output=True, text=True)
+        out = res.stdout
+        vol_match = re.search(r"\[(\d+)%\]", out)
+        vol = int(vol_match.group(1)) if vol_match else 50
+        muted = "[off]" in out or "[on]" not in out
+        return vol, muted
+    except Exception:
+        return 50, False
+
+def get_brightness():
+    try:
+        if not os.path.exists("/sys/class/backlight/amdgpu_bl0/brightness"):
+            return 100
+        with open("/sys/class/backlight/amdgpu_bl0/brightness", "r") as f:
+            curr = int(f.read().strip())
+        with open("/sys/class/backlight/amdgpu_bl0/max_brightness", "r") as f:
+            max_val = int(f.read().strip())
+        return int((curr / max_val) * 100)
+    except Exception:
+        return 100
+
+def set_brightness(pct):
+    try:
+        if not os.path.exists("/sys/class/backlight/amdgpu_bl0/brightness"):
+            return False
+        pct = max(1, min(100, pct))
+        with open("/sys/class/backlight/amdgpu_bl0/max_brightness", "r") as f:
+            max_val = int(f.read().strip())
+        val = int((pct / 100) * max_val)
+        with open("/sys/class/backlight/amdgpu_bl0/brightness", "w") as f:
+            f.write(str(val))
+        return True
+    except Exception as e:
+        print(f"Error setting brightness: {e}", file=sys.stderr)
+        return False
+
+def get_ssh_active():
+    try:
+        res = subprocess.run(["systemctl", "is-active", "sshd"], capture_output=True, text=True)
+        return res.stdout.strip() == "active"
+    except Exception:
+        return False
+
+def flatpak_update_thread():
+    global FLATPAK_UPDATE_STATUS, FLATPAK_UPDATE_LOG
+    FLATPAK_UPDATE_STATUS = "updating"
+    try:
+        res = subprocess.run(["flatpak", "update", "-y"], capture_output=True, text=True)
+        if res.returncode == 0:
+            FLATPAK_UPDATE_STATUS = "success"
+            FLATPAK_UPDATE_LOG = res.stdout
+        else:
+            FLATPAK_UPDATE_STATUS = "error"
+            FLATPAK_UPDATE_LOG = res.stderr
+    except Exception as e:
+        FLATPAK_UPDATE_STATUS = "error"
+        FLATPAK_UPDATE_LOG = str(e)
+
 class CompanionRequestHandler(BaseHTTPRequestHandler):
     
     def log_message(self, format, *args):
@@ -571,6 +633,16 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(zip_data)
             except Exception as e:
                 self.send_json({"error": str(e)}, status=500)
+        elif path == "/api/control/status":
+            vol, muted = get_volume()
+            self.send_json({
+                "volume": vol,
+                "muted": muted,
+                "brightness": get_brightness(),
+                "ssh_active": get_ssh_active(),
+                "flatpak_status": FLATPAK_UPDATE_STATUS,
+                "flatpak_log": FLATPAK_UPDATE_LOG
+            })
         else:
             self.send_error(404, "API Endpoint Not Found")
 
@@ -832,6 +904,72 @@ class CompanionRequestHandler(BaseHTTPRequestHandler):
                 })
             except Exception as e:
                 self.send_json({"error": str(e)}, status=500)
+        elif path == "/api/control/power":
+            action = query.get("action", [None])[0]
+            if not action:
+                self.send_json({"error": "Missing action parameter"}, status=400)
+                return
+                
+            try:
+                if action == "shutdown":
+                    subprocess.Popen(["systemctl", "poweroff"])
+                elif action == "reboot":
+                    subprocess.Popen(["systemctl", "reboot"])
+                elif action == "suspend":
+                    subprocess.Popen(["systemctl", "suspend"])
+                elif action == "gamemode":
+                    subprocess.Popen(["/usr/bin/steamos-session-select", "gaming"])
+                else:
+                    self.send_json({"error": "Invalid action"}, status=400)
+                    return
+                self.send_json({"status": "success"})
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
+                
+        elif path == "/api/control/volume":
+            try:
+                body = self.rfile.read(content_length).decode('utf-8')
+                data = json.loads(body)
+                
+                if "volume" in data:
+                    vol = int(data["volume"])
+                    subprocess.run(["amixer", "sset", "Master", f"{vol}%"], capture_output=True)
+                if "muted" in data:
+                    muted = bool(data["muted"])
+                    cmd = "mute" if muted else "unmute"
+                    subprocess.run(["amixer", "sset", "Master", cmd], capture_output=True)
+                    
+                vol, muted = get_volume()
+                self.send_json({"status": "success", "volume": vol, "muted": muted})
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
+                
+        elif path == "/api/control/brightness":
+            try:
+                body = self.rfile.read(content_length).decode('utf-8')
+                data = json.loads(body)
+                pct = int(data.get("brightness", 100))
+                set_brightness(pct)
+                self.send_json({"status": "success", "brightness": get_brightness()})
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
+                
+        elif path == "/api/control/ssh":
+            try:
+                body = self.rfile.read(content_length).decode('utf-8')
+                data = json.loads(body)
+                active = bool(data.get("active", False))
+                cmd = "start" if active else "stop"
+                subprocess.run(["systemctl", cmd, "sshd"], capture_output=True)
+                self.send_json({"status": "success", "ssh_active": get_ssh_active()})
+            except Exception as e:
+                self.send_json({"error": str(e)}, status=500)
+                
+        elif path == "/api/control/flatpak_update":
+            global FLATPAK_UPDATE_STATUS
+            if FLATPAK_UPDATE_STATUS != "updating":
+                threading.Thread(target=flatpak_update_thread).start()
+            self.send_json({"status": "success", "flatpak_status": FLATPAK_UPDATE_STATUS})
         else:
             self.send_error(404, "API Endpoint Not Found")
 

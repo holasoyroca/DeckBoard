@@ -76,6 +76,11 @@ function switchTab(tab) {
         tabTitle.innerText = "Limpiador de Shaders";
         btnRefreshStats.style.display = "none";
         loadShaders(false);
+    } else if (tab === "control") {
+        tabTitle.innerText = "Control Remoto de la Deck";
+        btnRefreshStats.style.display = "none";
+        loadControlStatus();
+        statsInterval = setInterval(loadControlStatus, 5000);
     } else if (tab === "about") {
         tabTitle.innerText = "Guía e Información";
         btnRefreshStats.style.display = "none";
@@ -712,6 +717,199 @@ btnCleanSelected.addEventListener("click", async () => {
         }
     }
 });
+
+// --- CONTROL REMOTO TAB LOGIC ---
+let flatpakPollInterval = null;
+
+async function loadControlStatus() {
+    try {
+        const res = await fetch("/api/control/status");
+        if (!res.ok) throw new Error("Failed to fetch control status");
+        const data = await res.json();
+        
+        // Volume
+        document.getElementById("lbl-volume").innerText = `${data.volume}%`;
+        document.getElementById("slider-volume").value = data.volume;
+        const btnMute = document.getElementById("btn-mute");
+        if (data.muted) {
+            btnMute.innerText = "Desactivar Silencio";
+            btnMute.classList.remove("btn-secondary");
+            btnMute.classList.add("btn-primary");
+        } else {
+            btnMute.innerText = "Silenciar";
+            btnMute.classList.remove("btn-primary");
+            btnMute.classList.add("btn-secondary");
+        }
+        
+        // Brightness
+        document.getElementById("lbl-brightness").innerText = `${data.brightness}%`;
+        document.getElementById("slider-brightness").value = data.brightness;
+        
+        // SSH
+        const toggleSsh = document.getElementById("toggle-ssh");
+        const lblSshStatus = document.getElementById("lbl-ssh-status");
+        toggleSsh.checked = data.ssh_active;
+        if (data.ssh_active) {
+            lblSshStatus.innerText = "Activo";
+            lblSshStatus.style.color = "var(--success)";
+        } else {
+            lblSshStatus.innerText = "Inactivo";
+            lblSshStatus.style.color = "var(--danger)";
+        }
+        
+        // Flatpak
+        const lblFlatpakStatus = document.getElementById("lbl-flatpak-status");
+        const flatpakProgressContainer = document.getElementById("flatpak-progress-container");
+        const lblFlatpakProgress = document.getElementById("lbl-flatpak-progress");
+        const btnUpdateFlatpak = document.getElementById("btn-update-flatpak");
+        
+        if (data.flatpak_status === "idle") {
+            lblFlatpakStatus.innerText = "Al día / Sin comprobar";
+            flatpakProgressContainer.style.display = "none";
+            btnUpdateFlatpak.disabled = false;
+            if (flatpakPollInterval) {
+                clearInterval(flatpakPollInterval);
+                flatpakPollInterval = null;
+            }
+        } else if (data.flatpak_status === "updating") {
+            lblFlatpakStatus.innerText = "Actualizando...";
+            flatpakProgressContainer.style.display = "flex";
+            lblFlatpakProgress.innerText = "Ejecutando flatpak update -y...";
+            btnUpdateFlatpak.disabled = true;
+            if (!flatpakPollInterval) {
+                flatpakPollInterval = setInterval(loadControlStatus, 2000);
+            }
+        } else if (data.flatpak_status === "success") {
+            lblFlatpakStatus.innerText = "Actualizado con éxito";
+            flatpakProgressContainer.style.display = "none";
+            btnUpdateFlatpak.disabled = false;
+            if (flatpakPollInterval) {
+                clearInterval(flatpakPollInterval);
+                flatpakPollInterval = null;
+            }
+        } else if (data.flatpak_status === "error") {
+            lblFlatpakStatus.innerText = "Error en actualización";
+            flatpakProgressContainer.style.display = "none";
+            btnUpdateFlatpak.disabled = false;
+            if (flatpakPollInterval) {
+                clearInterval(flatpakPollInterval);
+                flatpakPollInterval = null;
+            }
+        }
+    } catch (err) {
+        console.error("Error loading control status:", err);
+    }
+}
+
+// Volume Listeners
+document.getElementById("slider-volume").addEventListener("change", async (e) => {
+    const val = e.target.value;
+    try {
+        await fetch("/api/control/volume", {
+            method: "POST",
+            body: JSON.stringify({ volume: parseInt(val) })
+        });
+        loadControlStatus();
+    } catch (err) {
+        console.error("Error setting volume:", err);
+    }
+});
+document.getElementById("slider-volume").addEventListener("input", (e) => {
+    document.getElementById("lbl-volume").innerText = `${e.target.value}%`;
+});
+
+// Brightness Listeners
+document.getElementById("slider-brightness").addEventListener("change", async (e) => {
+    const val = e.target.value;
+    try {
+        await fetch("/api/control/brightness", {
+            method: "POST",
+            body: JSON.stringify({ brightness: parseInt(val) })
+        });
+        loadControlStatus();
+    } catch (err) {
+        console.error("Error setting brightness:", err);
+    }
+});
+document.getElementById("slider-brightness").addEventListener("input", (e) => {
+    document.getElementById("lbl-brightness").innerText = `${e.target.value}%`;
+});
+
+// Toggle Mute
+async function toggleMute() {
+    const btnMute = document.getElementById("btn-mute");
+    const isMuted = btnMute.innerText === "Silenciar";
+    try {
+        await fetch("/api/control/volume", {
+            method: "POST",
+            body: JSON.stringify({ muted: isMuted })
+        });
+        loadControlStatus();
+    } catch (err) {
+        console.error("Error toggling mute:", err);
+    }
+}
+
+// SSH switch
+document.getElementById("toggle-ssh").addEventListener("change", async (e) => {
+    const active = e.target.checked;
+    try {
+        const res = await fetch("/api/control/ssh", {
+            method: "POST",
+            body: JSON.stringify({ active: active })
+        });
+        if (!res.ok) throw new Error("Failed to toggle SSH");
+        loadControlStatus();
+    } catch (err) {
+        alert("Error al cambiar SSH: " + err.message);
+        loadControlStatus();
+    }
+});
+
+// Flatpak updater
+async function triggerFlatpakUpdate() {
+    try {
+        const btn = document.getElementById("btn-update-flatpak");
+        btn.disabled = true;
+        document.getElementById("flatpak-progress-container").style.display = "flex";
+        document.getElementById("lbl-flatpak-progress").innerText = "Iniciando actualización...";
+        
+        const res = await fetch("/api/control/flatpak_update", { method: "POST" });
+        if (!res.ok) throw new Error("Failed to start Flatpak update");
+        
+        loadControlStatus();
+    } catch (err) {
+        alert("Error al actualizar Flatpaks: " + err.message);
+        loadControlStatus();
+    }
+}
+
+// Power actions
+async function powerAction(action) {
+    let msg = "";
+    if (action === "shutdown") msg = "¿Estás seguro de que deseas APAGAR la Steam Deck?";
+    else if (action === "reboot") msg = "¿Estás seguro de que deseas REINICIAR la Steam Deck?";
+    else if (action === "suspend") msg = "¿Estás seguro de que deseas SUSPENDER la Steam Deck?";
+    else if (action === "gamemode") msg = "¿Estás seguro de que deseas volver al Modo Juego?";
+    
+    if (confirm(msg)) {
+        try {
+            await fetch(`/api/control/power?action=${action}`, { method: "POST" });
+            if (action === "shutdown" || action === "reboot") {
+                alert("Comando de apagado/reinicio enviado. La conexión se cerrará.");
+            } else {
+                setTimeout(loadControlStatus, 2000);
+            }
+        } catch (err) {
+            alert("Error al ejecutar acción: " + err.message);
+        }
+    }
+}
+
+// Expose actions to window context
+window.toggleMute = toggleMute;
+window.triggerFlatpakUpdate = triggerFlatpakUpdate;
+window.powerAction = powerAction;
 
 // Start application
 switchTab("stats");
