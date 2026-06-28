@@ -391,14 +391,24 @@
                         </button>
                     </div>
 
-                    <div class="alert alert-warning">
+                    <div class="alert alert-warning" style="background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.2); color: #f87171;">
                         <div class="alert-icon">
                             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"></path>
                             </svg>
                         </div>
-                        <div class="alert-content">
-                            <strong>¡Atención!</strong> Eliminar la carpeta <em>compatdata</em> (prefijo de Wine/Proton) de un juego instalado borrará sus partidas guardadas locales si el juego no cuenta con sincronización de Steam Cloud. Las carpetas marcadas como <strong>Huéped/Huérfano</strong> (juegos desinstalados) son 100% seguras de borrar.
+                        <div class="alert-content" style="font-size: 0.85rem; line-height: 1.45;">
+                            <strong style="display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">⚠️ Información importante sobre Shaders y Compatdata:</strong>
+                            <ul style="margin: 0; padding-left: 1.2rem; color: #fca5a5;">
+                                <li style="margin-bottom: 0.4rem;">
+                                    <strong>Caché de Shaders:</strong> Archivos precompilados de gráficos para evitar tirones (*stuttering*) al jugar. 
+                                    <em>Consecuencia de borrarlo:</em> Liberas espacio de inmediato de forma 100% segura, pero la próxima vez que inicies el juego, Steam los volverá a descargar o compilar, lo que puede causar pequeños tirones de rendimiento temporales al inicio.
+                                </li>
+                                <li style="margin-bottom: 0.4rem;">
+                                    <strong>Prefijo de Proton / Compatdata:</strong> Entorno Windows exclusivo para cada juego. 
+                                    <em>Consecuencia de borrarlo:</em> <strong>¡Cuidado!</strong> Se borrarán las configuraciones del juego y las <strong>partidas guardadas locales</strong> (si el juego no soporta Steam Cloud). Las carpetas marcadas como <strong>Huésped/Huérfano</strong> (juegos desinstalados) son 100% seguras de borrar ya que son residuos de juegos eliminados.
+                                </li>
+                            </ul>
                         </div>
                     </div>
 
